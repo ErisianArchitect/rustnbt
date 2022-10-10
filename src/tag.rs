@@ -62,7 +62,7 @@ macro_rules! tag_info_table {
     };
 }
 
-//  id|title    |optional type_
+//  id |title              |optional type_
 tag_info_table! {
     00  End
     01  Byte                i8
