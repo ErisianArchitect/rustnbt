@@ -1,0 +1,2 @@
+# rustnbt
+NBT format library.
