@@ -17,6 +17,20 @@ where
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, Error>;
 }
 
+pub fn read_bytes<R: Read>(reader: &mut R, length: usize) -> Result<Vec<u8>,Error> {
+    let mut buf: Vec<u8> = vec![0u8; length];
+    reader.read_exact(&mut buf)?;
+    Ok(buf)
+}
+
+pub fn read_array<T: NBTRead, R: Read>(reader: &mut R, length: usize) -> Result<Vec<T>,Error> {
+    (0..length)
+        .map(|_| {
+            T::nbt_read(reader)
+        })
+        .collect()
+}
+
 pub trait NBTWrite {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, Error>;
 }
@@ -24,6 +38,24 @@ pub trait NBTWrite {
 impl NBTSize for String {
     fn size_in_bytes(&self) -> usize {
         2usize + self.len()
+    }
+}
+
+impl NBTRead for String {
+    fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, Error> {
+        // 🦆 <-- Frank
+        // Frank: How does this function work, eh?
+        // Me: Well, you see, to read a string in NBT format, we first
+        //     need to read a 16-bit unsigned big endian integer, that
+        //     signifies our length. We then read that number of bytes
+        //     and interpret those bytes as a utf-8 string.
+        let length: u16 = u16::nbt_read(reader)?;
+        let strbytes = read_bytes(reader, length as usize)?;
+        if let Ok(result) = String::from_utf8(strbytes) {
+            Ok(result)
+        } else {
+            Err(Error::new(std::io::ErrorKind::Other, "Failed to convert bytes to UTF-8 string."))
+        }
     }
 }
 
@@ -137,7 +169,6 @@ macro_rules! tag_io {
 
 tag_info_table!(tag_io);
 //include!("table.rs");
-
 #[cfg(test)]
 mod tests {
     #![allow(unused)]
