@@ -31,6 +31,8 @@ macro_rules! tag_info_table {
             24  I128Array           Vec<i128>
             25  U128Array           Vec<u128>
             26  StringArray         Vec<String>
+            27  FloatArray          Vec<f32>
+            28  DoubleArray         Vec<f64>
         }
     }
 }
