@@ -1,5 +1,5 @@
-pub mod tag;
 pub mod io;
+pub mod tag;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
