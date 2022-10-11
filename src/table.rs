@@ -1,4 +1,5 @@
 
+/// $id:literal $name:ident $($type_:ty)?
 #[macro_export]
 macro_rules! tag_info_table {
     ($macro:ident) => {
