@@ -3,7 +3,7 @@
 #[allow(unused)]
 use std::io::{BufReader, BufWriter, Cursor, Error, Read, Seek, SeekFrom, Write};
 
-use crate::tag::*;
+use crate::{tag::*, tag_info_table};
 
 /// Trait that gives the serialization size of various values.
 pub trait NBTSize {
@@ -107,7 +107,7 @@ primitive_table![
     i128 u128 = 16
 ];
 
-macro_rules! tag_info_table {
+macro_rules! tag_io {
     ($($id:literal $title:ident $($type_:ty)?)+) => {
         impl NBTSize for ListTag {
             fn size_in_bytes(&self) -> usize {
@@ -135,7 +135,8 @@ macro_rules! tag_info_table {
     };
 }
 
-include!("table.rs");
+tag_info_table!(tag_io);
+//include!("table.rs");
 
 #[cfg(test)]
 mod tests {

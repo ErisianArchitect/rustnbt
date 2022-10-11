@@ -2,11 +2,12 @@
 
 use crate::io::*;
 use indexmap::IndexMap;
+use crate::table::tag_info_table;
 
 pub type Map = IndexMap<String, Tag>;
 
 // This macro is not for those with weak dispositions.
-macro_rules! tag_info_table {
+macro_rules! tag_data {
     ($($id:literal $title:ident $($type_:ty)?)+) => {
         pub(crate) const TAG_NAMES: &[&str] = &[
             $(concat!("TAG_", stringify!($title)),)+
@@ -33,7 +34,7 @@ macro_rules! tag_info_table {
                 }
             }
             pub fn size_in_bytes(&self) -> usize {
-                macro_rules! size_arm_match {
+                macro_rules! arm_match {
                     ($tag_title:ident $item_ident:ident $_:ty) => {
                         Tag::$tag_title($item_ident)
                     };
@@ -41,7 +42,7 @@ macro_rules! tag_info_table {
                         Tag::$tag_title
                     };
                 }
-                macro_rules! size_arm_result {
+                macro_rules! arm_result {
                     ($tag_title:ident $item_ident:ident $_:ty) => {
                         $item_ident.size_in_bytes()
                     };
@@ -50,7 +51,7 @@ macro_rules! tag_info_table {
                     };
                 }
                 match self {
-                    $(size_arm_match!($title $(item $type_)?) => size_arm_result!($title $(item $type_)?),)+
+                    $(arm_match!($title $(item $type_)?) => arm_result!($title $(item $type_)?),)+
                 }
             }
         }
@@ -89,7 +90,7 @@ macro_rules! tag_info_table {
                 // but there is no associated Vec to the End variant, meaning that we can't
                 // match it in an arm to retrieve the len.
                 // So we create a special macro to help us sort out that issue.
-                macro_rules! len_arm_match {
+                macro_rules! arm_match {
                     ($list_title:ident $arr_ident:ident $list_type:ty) => {
                         ListTag::$list_title($arr_ident)
                     };
@@ -97,7 +98,7 @@ macro_rules! tag_info_table {
                         ListTag::$list_title
                     };
                 }
-                macro_rules! len_arm_result {
+                macro_rules! arm_result {
                     ($list_title:ident $arr_ident:ident $list_type:ty) => {
                         $arr_ident.len()
                     };
@@ -106,14 +107,14 @@ macro_rules! tag_info_table {
                     };
                 }
                 match self {
-                    $(len_arm_match!($title $(arr $type_)?) => len_arm_result!($title $(arr $type_)?),)+
+                    $(arm_match!($title $(arr $type_)?) => arm_result!($title $(arr $type_)?),)+
                 }
             }
         }
     };
 }
 
-include!("table.rs");
+tag_info_table!(tag_data);
 
 impl Tag {
     /// PascalCase title of this TagID.
