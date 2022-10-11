@@ -1,6 +1,8 @@
+// https://wiki.vg/NBT
+
 use indexmap::IndexMap;
 
-type Map = IndexMap<String, Tag>;
+pub type Map = IndexMap<String, Tag>;
 
 // This macro is not for those with weak dispositions.
 macro_rules! tag_info_table {
@@ -58,6 +60,33 @@ macro_rules! tag_info_table {
                     $(ListTag::$title{..} => TagID::$title,)+
                 }
             }
+            pub fn len(&self) -> usize {
+                // Gotta use some sub-macros to get this working right.
+                // You may be wondering "why?"
+                // Well, the answer is simple: Because ListTag::End would be a variant,
+                // but there is no associated Vec to the End variant, meaning that we can't
+                // match it in an arm to retrieve the len.
+                // So we create a special macro to help us sort out that issue.
+                macro_rules! len_arm_match {
+                    ($list_title:ident $arr_ident:ident $list_type:ty) => {
+                        ListTag::$list_title($arr_ident)
+                    };
+                    ($list_title:ident) => {
+                        ListTag::$list_title
+                    };
+                }
+                macro_rules! len_arm_result {
+                    ($list_title:ident $arr_ident:ident $list_type:ty) => {
+                        $arr_ident.len()
+                    };
+                    ($list_title:ident) => {
+                        0
+                    };
+                }
+                match self {
+                    $(len_arm_match!($title $(arr $type_)?) => len_arm_result!($title $(arr $type_)?),)+
+                }
+            }
         }
     };
 }
@@ -94,10 +123,11 @@ tag_info_table! {
 }
 
 impl Tag {
+    /// PascalCase title of this TagID.
     pub fn title(&self) -> &'static str {
         self.id().title()
     }
-
+    /// In the format of TAG_TagTitle.
     pub fn name(&self) -> &'static str {
         self.id().name()
     }
@@ -124,73 +154,6 @@ impl TagID {
     }
 }
 
-/// Trait that gives the serialization size of various values.
-pub trait NBTSize {
-    fn size_in_bytes(&self) -> usize;
-}
-
-// impl NBTSize for:
-// String, Map, and ListTag
-
-impl NBTSize for String {
-    fn size_in_bytes(&self) -> usize {
-        2usize + self.len()
-    }
-}
-
-impl NBTSize for Map {
-    fn size_in_bytes(&self) -> usize {
-        todo!()
-    }
-}
-
-impl NBTSize for ListTag {
-    fn size_in_bytes(&self) -> usize {
-        todo!()
-    }
-}
-
-pub trait NBTPrimitiveSize {
-    const SIZE: usize;
-    fn primitive_size_in_bytes() -> usize {
-        Self::SIZE
-    }
-}
-
-impl<T> NBTSize for T
-where
-    T: NBTPrimitiveSize,
-{
-    fn size_in_bytes(&self) -> usize {
-        Self::SIZE
-    }
-}
-
-macro_rules! primitive_table {
-    ($($($primitive:ty)+ = $size:literal)+) => {
-        $(
-            $(
-                impl NBTPrimitiveSize for $primitive {
-                    const SIZE: usize = $size;
-                }
-
-                impl NBTSize for Vec<$primitive> {
-                    fn size_in_bytes(&self) -> usize {
-                        4usize + self.len() * <$primitive as NBTPrimitiveSize>::SIZE
-                    }
-                }
-            )+
-        )+
-    };
-}
-
-primitive_table![
-    i8 u8 = 1
-    i16 u16 = 2
-    i32 u32 f32 = 4
-    i64 u64 f64 = 8
-    i128 u128 = 16
-];
 
 #[cfg(test)]
 mod tests {
