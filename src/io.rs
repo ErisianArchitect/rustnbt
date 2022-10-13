@@ -1,4 +1,5 @@
 // https://wiki.vg/NBT
+// https://minecraft.fandom.com/wiki/NBT_format
 
 #[allow(unused)]
 use std::io::{BufReader, BufWriter, Cursor, Error, Read, Seek, SeekFrom, Write};
@@ -9,64 +10,33 @@ use crate::{
     tag_info_table,
 };
 
-pub fn read_bytes<R: Read>(reader: &mut R, length: usize) -> Result<Vec<u8>,Error> {
-    let mut buf: Vec<u8> = vec![0u8; length];
-    reader.read_exact(&mut buf)?;
+fn read_bytes<R: Read>(mut reader: R, length: usize) -> Result<Vec<u8>,Error> {
+    let mut buf: Vec<u8> = Vec::new();
+    reader.take(length as u64).read_to_end(&mut buf)?;
     Ok(buf)
 }
 
-pub fn write_bytes<W: Write>(writer: &mut W, data: &[u8]) -> Result<(), Error> {
+fn write_bytes<W: Write>(mut writer: W, data: &[u8]) -> Result<(), Error> {
     writer.write_all(data)
 }
 
-pub fn read_array<R: Read, T: NBTRead>(reader: &mut R, length: usize) -> Result<Vec<T>,Error> {
+fn read_array<R: Read, T: NBTRead>(mut reader: R, length: usize) -> Result<Vec<T>,Error> {
     (0..length)
         .map(|_| {
-            T::nbt_read(reader)
+            T::nbt_read(&mut reader)
         })
         .collect()
 }
 
-pub fn write_array<W: Write, T: NBTWrite>(writer: &mut W, data: &[T]) -> Result<usize, Error> {
-    data.iter().try_fold(4usize, |size, item| {
-        item.nbt_write(writer)
-            .and_then(|write_size| Ok(size + write_size))
-    })
+fn write_array<W: Write, T: NBTWrite>(mut writer: W, data: &[T]) -> Result<usize, Error> {
+    data.iter()
+        .map(|item| item.nbt_write(&mut writer))
+        .sum()
 }
 
 /// Trait that gives the serialization size of various values.
 pub trait NBTSize {
     fn size_in_bytes(&self) -> usize;
-}
-
-pub trait NBTRead
-where
-    Self: Sized,
-{
-    fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, Error>;
-}
-
-impl NBTRead for String {
-    fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, Error> {
-        let bytes = read_bytes(reader, u16::nbt_read(reader)? as usize)?;
-        if let Ok(result) = String::from_utf8(bytes) {
-            Ok(result)
-        } else {
-            Err(Error::new(std::io::ErrorKind::Other, "Failed to convert to UTF-8 string."))
-        }
-    }
-}
-
-pub trait NBTWrite {
-    fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, Error>;
-}
-
-impl NBTWrite for String {
-    fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, Error> {
-        let length: u16 = self.len() as u16;
-        length.nbt_write(writer)?;
-        todo!()
-    }
 }
 
 impl NBTSize for String {
@@ -75,30 +45,16 @@ impl NBTSize for String {
     }
 }
 
-impl NBTRead for String {
-    fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, Error> {
-        // 🦆 <-- Frank
-        // Frank: How does this function work, eh?
-        // Me: Well, you see, to read a string in NBT format, we first
-        //     need to read a 16-bit unsigned big endian integer, that
-        //     signifies our length. We then read that number of bytes
-        //     and interpret those bytes as a utf-8 string.
-        let length: u16 = u16::nbt_read(reader)?;
-        let strbytes = read_bytes(reader, length as usize)?;
-        if let Ok(result) = String::from_utf8(strbytes) {
-            Ok(result)
-        } else {
-            Err(Error::new(std::io::ErrorKind::Other, "Failed to convert bytes to UTF-8 string."))
-        }
-    }
-}
-
 impl NBTSize for Vec<String> {
+    /// Returns the size that this would be written as NBT.
+    /// It will add 4 to the sum size of the elements, marking
+    /// the number of bytes reserved for the length, which is
+    /// a requirement to write this to memory.
     fn size_in_bytes(&self) -> usize {
         self.iter().map(|value| {
             value.size_in_bytes()
         })
-        .sum::<usize>() + 4
+        .sum::<usize>() + 4usize
     }
 }
 
@@ -129,52 +85,104 @@ impl NBTSize for Vec<ListTag> {
     }
 }
 
+pub trait NBTRead
+where
+    Self: Sized,
+{
+    fn nbt_read<R: Read>(reader: R) -> Result<Self, Error>;
+}
+
+impl<T: NBTRead> NBTRead for Vec<T> {
+    fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+        let length = u32::nbt_read(&mut reader)?;
+        read_array(reader, length as usize)
+    }
+}
+
+impl NBTRead for String {
+    fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+        // 🦆 <-- Frank
+        // Frank: How does this function work, eh?
+        // Me: Well, you see, to read a string in NBT format, we first
+        //     need to read a 16-bit unsigned big endian integer, that
+        //     signifies our length. We then read that number of bytes
+        //     and interpret those bytes as a utf-8 string.
+        let length: u16 = u16::nbt_read(&mut reader)?;
+        let strbytes = read_bytes(reader, length as usize)?;
+        if let Ok(result) = String::from_utf8(strbytes) {
+            Ok(result)
+        } else {
+            Err(Error::new(std::io::ErrorKind::Other, "Failed to convert bytes to UTF-8 string."))
+        }
+    }
+}
+
+impl NBTRead for TagID {
+    fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+        Ok(TagID::from(u8::nbt_read(reader)?))
+    }
+}
+
+pub trait NBTWrite {
+    fn nbt_write<W: Write>(&self, writer: W) -> Result<usize, Error>;
+}
+
+impl NBTWrite for TagID {
+    fn nbt_write<W: Write>(&self, writer: W) -> Result<usize, Error> {
+        Ok((self.value() as u8).nbt_write(writer)?)    }
+}
+
+impl NBTWrite for String {
+    fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, Error> {
+        let length: u16 = self.len() as u16;
+        length.nbt_write(&mut writer)?;
+        writer.write(self.as_bytes())
+    }
+}
+
 macro_rules! primitive_table {
-    ($($($primitive:ty)+ = $size:literal)+) => {
+    ($($primitive:ty)+) => {
         $(
-            $(
-
-                impl NBTSize for $primitive {
-                    fn size_in_bytes(&self) -> usize {
-                        $size
-                    }
+            impl NBTSize for $primitive {
+                fn size_in_bytes(&self) -> usize {
+                    std::mem::size_of::<$primitive>()
                 }
+            }
 
-                impl NBTSize for Vec<$primitive> {
-                    fn size_in_bytes(&self) -> usize {
-                        self.len() * $size + 4
-                    }
+            impl NBTSize for Vec<$primitive> {
+                fn size_in_bytes(&self) -> usize {
+                    self.len() * std::mem::size_of::<$primitive>() + 4
                 }
+            }
 
-                impl NBTRead for $primitive {
-                    fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, Error> {
-                        let mut buf = [0u8; $size];
-                        reader.read_exact(&mut buf)?;
-                        Ok(Self::from_be_bytes(buf))
-                    }
+            impl NBTRead for $primitive {
+                fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+                    let mut buf = [0u8; std::mem::size_of::<$primitive>()];
+                    reader.read_exact(&mut buf)?;
+                    Ok(Self::from_be_bytes(buf))
                 }
+            }
 
-                impl NBTWrite for $primitive {
-                    fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, Error> {
-                        writer.write(self.to_be_bytes().as_slice())
-                    }
+            impl NBTWrite for $primitive {
+                fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, Error> {
+                    writer.write(self.to_be_bytes().as_slice())
                 }
-
-            )+
+            }
         )+
     };
 }
 
 primitive_table![
-    i8 u8 = 1
-    i16 u16 = 2
-    i32 u32 f32 = 4
-    i64 u64 f64 = 8
-    i128 u128 = 16
+    i8 u8
+    i16 u16
+    i32 u32 f32
+    i64 u64 f64
+    i128 u128
 ];
 
 macro_rules! tag_io {
     ($($id:literal $title:ident $($type_:ty)?)+) => {
+
 
         impl NBTSize for Tag {
             fn size_in_bytes(&self) -> usize {
@@ -193,6 +201,58 @@ macro_rules! tag_io {
                 }
             }
         }
+
+        impl NBTRead for ListTag {
+            fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+                let id = TagID::nbt_read(&mut reader)?;
+                Ok(match id {
+                    $(
+                        TagID::$title => table_arm_filter!($($type_)? : { 
+                            {
+                                let length = u32::nbt_read(&mut reader)?;
+                                ListTag::$title(read_array(&mut reader, length as usize)?)
+                            }
+                        } else { 
+                            ListTag::End 
+                        }),
+                    )+
+                })
+            }
+        }
+
+        impl NBTWrite for ListTag {
+            fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize,Error> {
+                todo!()
+            }
+        }
+
+        impl NBTRead for Map {
+            fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+                // Reading goes like this:
+                // Read TagID
+                let mut map = Map::new();
+                let mut id = TagID::nbt_read(&mut reader)?;
+                while id != TagID::End {
+                    let name = String::nbt_read(&mut reader)?;
+                    let tag = match id {
+                        $($(
+                            TagID::$title => Tag::$title(<$type_>::nbt_read(&mut reader)?),
+                        )?)+
+                        TagID::End => Tag::End,
+                    };
+                    map.insert(name, tag);
+                    id = TagID::nbt_read(&mut reader)?;
+                }
+                Ok(map)
+            }
+        }
+
+        impl NBTWrite for Map {
+            fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, Error> {
+                todo!()
+            }
+        }
+
     };
 }
 
