@@ -3,7 +3,36 @@
 #[allow(unused)]
 use std::io::{BufReader, BufWriter, Cursor, Error, Read, Seek, SeekFrom, Write};
 
-use crate::{tag::*, tag_info_table};
+use crate::{
+    tag::*, 
+    table_arm_filter,
+    tag_info_table,
+};
+
+pub fn read_bytes<R: Read>(reader: &mut R, length: usize) -> Result<Vec<u8>,Error> {
+    let mut buf: Vec<u8> = vec![0u8; length];
+    reader.read_exact(&mut buf)?;
+    Ok(buf)
+}
+
+pub fn write_bytes<W: Write>(writer: &mut W, data: &[u8]) -> Result<(), Error> {
+    writer.write_all(data)
+}
+
+pub fn read_array<R: Read, T: NBTRead>(reader: &mut R, length: usize) -> Result<Vec<T>,Error> {
+    (0..length)
+        .map(|_| {
+            T::nbt_read(reader)
+        })
+        .collect()
+}
+
+pub fn write_array<W: Write, T: NBTWrite>(writer: &mut W, data: &[T]) -> Result<usize, Error> {
+    data.iter().try_fold(4usize, |size, item| {
+        item.nbt_write(writer)
+            .and_then(|write_size| Ok(size + write_size))
+    })
+}
 
 /// Trait that gives the serialization size of various values.
 pub trait NBTSize {
@@ -17,22 +46,27 @@ where
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, Error>;
 }
 
-pub fn read_bytes<R: Read>(reader: &mut R, length: usize) -> Result<Vec<u8>,Error> {
-    let mut buf: Vec<u8> = vec![0u8; length];
-    reader.read_exact(&mut buf)?;
-    Ok(buf)
-}
-
-pub fn read_array<T: NBTRead, R: Read>(reader: &mut R, length: usize) -> Result<Vec<T>,Error> {
-    (0..length)
-        .map(|_| {
-            T::nbt_read(reader)
-        })
-        .collect()
+impl NBTRead for String {
+    fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, Error> {
+        let bytes = read_bytes(reader, u16::nbt_read(reader)? as usize)?;
+        if let Ok(result) = String::from_utf8(bytes) {
+            Ok(result)
+        } else {
+            Err(Error::new(std::io::ErrorKind::Other, "Failed to convert to UTF-8 string."))
+        }
+    }
 }
 
 pub trait NBTWrite {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, Error>;
+}
+
+impl NBTWrite for String {
+    fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, Error> {
+        let length: u16 = self.len() as u16;
+        length.nbt_write(writer)?;
+        todo!()
+    }
 }
 
 impl NBTSize for String {
@@ -115,7 +149,7 @@ macro_rules! primitive_table {
                 impl NBTRead for $primitive {
                     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, Error> {
                         let mut buf = [0u8; $size];
-                        reader.read_exact(buf.as_mut_slice())?;
+                        reader.read_exact(&mut buf)?;
                         Ok(Self::from_be_bytes(buf))
                     }
                 }
@@ -141,26 +175,21 @@ primitive_table![
 
 macro_rules! tag_io {
     ($($id:literal $title:ident $($type_:ty)?)+) => {
+
+        impl NBTSize for Tag {
+            fn size_in_bytes(&self) -> usize {
+                match self {
+                    $(table_arm_filter!( $($type_)? : { Tag::$title(item)    } else { Tag::$title } )
+                    =>table_arm_filter!( $($type_)? : { item.size_in_bytes() } else { 0           } ),)+
+                }
+            }
+        }
+
         impl NBTSize for ListTag {
             fn size_in_bytes(&self) -> usize {
-                macro_rules! arm_match {
-                    ($tag_title:ident $item_ident:ident $_:ty) => {
-                        ListTag::$tag_title($item_ident)
-                    };
-                    ($tag_title:ident) => {
-                        ListTag::$tag_title
-                    };
-                }
-                macro_rules! arm_result {
-                    ($tag_title:ident $item_ident:ident $_:ty) => {
-                        $item_ident.iter().map(|item| item.size_in_bytes()).sum::<usize>() + 5
-                    };
-                    ($tag_title:ident) => {
-                        5
-                    };
-                }
                 match self {
-                    $(arm_match!($title $(item $type_)?) => arm_result!($title $(item $type_)?),)+
+                    $(table_arm_filter!($($type_)? : { ListTag::$title(arr)                                           } else { ListTag::$title } )
+                    =>table_arm_filter!($($type_)? : { arr.iter().map(|item| item.size_in_bytes()).sum::<usize>() + 5 } else { 5               } ),)+
                 }
             }
         }
