@@ -4,6 +4,10 @@ use crate::io::*;
 use indexmap::IndexMap;
 use crate::tag_info_table;
 use crate::table_arm_filter;
+use num_traits::{
+    ToPrimitive,
+
+};
 
 pub type Map = IndexMap<String, Tag>;
 
@@ -22,7 +26,17 @@ macro_rules! tag_data {
         pub enum TagID {
             $($title = $id,)+
         }
-        
+
+        impl<T: ToPrimitive> From<T> for TagID {
+            fn from(value: T) -> Self {
+                match value.to_usize() {
+                    $(
+                        Some($id) => TagID::$title,
+                    )+
+                    _ => TagID::End,
+                }
+            }
+        }
 
         #[derive(Clone)]
         pub enum Tag {
@@ -103,8 +117,8 @@ impl TagID {
         TAG_NAMES[self.value()]
     }
     /// Returns this TagID as a usize.
-    pub fn value(&self) -> usize {
-        *self as usize
+    pub fn value(self) -> usize {
+        self as usize
     }
 }
 
