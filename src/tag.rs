@@ -2,7 +2,8 @@
 
 use crate::io::*;
 use indexmap::IndexMap;
-use crate::table::tag_info_table;
+use crate::tag_info_table;
+use crate::table_arm_filter;
 
 pub type Map = IndexMap<String, Tag>;
 
@@ -31,27 +32,6 @@ macro_rules! tag_data {
             pub fn id(&self) -> TagID {
                 match self {
                     $(Tag::$title{..} => TagID::$title,)+
-                }
-            }
-            pub fn size_in_bytes(&self) -> usize {
-                macro_rules! arm_match {
-                    ($tag_title:ident $item_ident:ident $_:ty) => {
-                        Tag::$tag_title($item_ident)
-                    };
-                    ($tag_title:ident) => {
-                        Tag::$tag_title
-                    };
-                }
-                macro_rules! arm_result {
-                    ($tag_title:ident $item_ident:ident $_:ty) => {
-                        $item_ident.size_in_bytes()
-                    };
-                    ($tag_title:ident) => {
-                        0
-                    };
-                }
-                match self {
-                    $(arm_match!($title $(item $type_)?) => arm_result!($title $(item $type_)?),)+
                 }
             }
         }
@@ -84,30 +64,9 @@ macro_rules! tag_data {
                 }
             }
             pub fn len(&self) -> usize {
-                // Gotta use some sub-macros to get this working right.
-                // You may be wondering "why?"
-                // Well, the answer is simple: Because ListTag::End would be a variant,
-                // but there is no associated Vec to the End variant, meaning that we can't
-                // match it in an arm to retrieve the len.
-                // So we create a special macro to help us sort out that issue.
-                macro_rules! arm_match {
-                    ($list_title:ident $arr_ident:ident $list_type:ty) => {
-                        ListTag::$list_title($arr_ident)
-                    };
-                    ($list_title:ident) => {
-                        ListTag::$list_title
-                    };
-                }
-                macro_rules! arm_result {
-                    ($list_title:ident $arr_ident:ident $list_type:ty) => {
-                        $arr_ident.len()
-                    };
-                    ($list_title:ident) => {
-                        0
-                    };
-                }
                 match self {
-                    $(arm_match!($title $(arr $type_)?) => arm_result!($title $(arr $type_)?),)+
+                    $(table_arm_filter!( $($type_)? : { ListTag::$title(arr) } else { ListTag::$title } )
+                    =>table_arm_filter!( $($type_)? : { arr.len()            } else { 0               } ),)+
                 }
             }
         }
