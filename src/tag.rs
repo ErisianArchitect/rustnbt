@@ -22,6 +22,7 @@ macro_rules! tag_data {
         pub enum TagID {
             $($title = $id,)+
         }
+        
 
         #[derive(Clone)]
         pub enum Tag {
