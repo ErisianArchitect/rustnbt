@@ -1,5 +1,6 @@
 [package]
 name = "rustnbt"
+author = "Derek F. <https://github.com/NullSurplus/>"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,3 +9,4 @@ edition = "2021"
 [dependencies]
 indexmap = "1.9.1"
 flate2 = "1.0"
+thiserror = "1.0"
