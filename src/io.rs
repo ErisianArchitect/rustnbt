@@ -369,7 +369,7 @@ mod tests {
         let long = Tag::Long(i64::MAX);
         let float = Tag::Float(3.14);
         let double = Tag::Double(420.69);
-        let bytearray = Tag::ByteArray(vec![1,2,3,4,5,-1,-2,-3,-4,-5]);
+        let bytearray = Tag::ByteArray((-128i8..=127).collect());
         let string = Tag::String(String::from("Hello, world!"));
         let string_list = Tag::List(
             ListTag::String(vec![
@@ -410,17 +410,42 @@ mod tests {
     }
 
     #[test]
+    fn timing_test() {
+        use std::fs::*;
+        use std::time::*;
+        let now = Instant::now();
+        (0..1).for_each(|_| {
+            let tag = test_tag();
+            let mut file = File::create("./ignore/test.nbt")
+                .expect("Failed to create file.");
+            let mut file = BufWriter::new(file);
+            let write_size = tag.nbt_write_named(&mut file, "TestRoot")
+                .expect("Failed to write named tag.");
+            let mut file = File::open("./ignore/test.nbt")
+                .expect("Failed to open file.");
+            let mut file = BufReader::new(file);
+            let read_tag = Tag::nbt_read_named(&mut file)
+                .expect("Failed to read named tag.");
+        });
+        let dur = now.elapsed();
+        println!("Millis: {}", dur.as_millis());
+    }
+
+    #[test]
     fn size_test() {
-        let tag = test_tag();
-        println!("Size: {}", tag.size_in_bytes());
+        let testtag = test_tag();
+        println!("Size: {}", testtag.size_in_bytes());
         use std::fs::*;
         let mut file = File::create("test_write.nbt").expect("Failed to create file.");
-        let write_size = tag.nbt_write_named(&mut file, "Root").expect("Failed to write tag.");
+        let write_size = testtag.nbt_write_named(&mut file, "Root").expect("Failed to write tag.");
         println!("Write size: {}", write_size);
         let mut file = File::open("test_write.nbt").expect("Failed to open file.");
         let (name, tag) = Tag::nbt_read_named(&mut file).expect("Failure.");
         println!("    Name: {name}");
         println!("Tag Type: {}", tag.title());
         println!("    Size: {}", tag.size_in_bytes());
+        println!("     Tag: {:#?}", tag);
+        println!("   First: {}", testtag.size_in_bytes());
+        println!("    Last: {}", tag.size_in_bytes());
     }
 }
