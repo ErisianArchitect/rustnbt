@@ -3,7 +3,6 @@
 use crate::io::*;
 use indexmap::IndexMap;
 use crate::tag_info_table;
-use crate::table_arm_filter;
 use num_traits::{
     ToPrimitive,
 
@@ -13,17 +12,21 @@ pub type Map = IndexMap<String, Tag>;
 
 // This macro is not for those with weak dispositions.
 macro_rules! tag_data {
-    ($($id:literal $title:ident $($type_:ty)?)+) => {
+    ($($id:literal $title:ident $type_:ty)+) => {
         pub(crate) const TAG_NAMES: &[&str] = &[
+            "TAG_End",
             $(concat!("TAG_", stringify!($title)),)+
         ];
 
         pub(crate) const TAG_TITLES: &[&str] = &[
+            "End",
             $(stringify!($title),)+
         ];
 
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
         pub enum TagID {
+            End = 0,
+            Unsupported = -1,
             $($title = $id,)+
         }
 
@@ -33,55 +36,60 @@ macro_rules! tag_data {
                     $(
                         Some($id) => TagID::$title,
                     )+
-                    _ => TagID::End,
+                    Some(0) => TagID::End,
+                    _ => TagID::Unsupported,
                 }
             }
         }
 
         #[derive(Clone)]
         pub enum Tag {
-            $($title$(($type_))?,)+
+            End,
+            $($title($type_),)+
         }
 
         impl Tag {
             pub fn id(&self) -> TagID {
                 match self {
-                    $(Tag::$title{..} => TagID::$title,)+
+                    Tag::End => TagID::End,
+                    $(Tag::$title(_) => TagID::$title,)+
                 }
             }
         }
 
-        $($(
+        $(
             impl From<$type_> for Tag {
                 fn from(value: $type_) -> Self {
                     Tag::$title(value)
                 }
             }
-        )?)+
+        )+
 
         #[derive(Clone)]
         pub enum ListTag {
-            $($title$((Vec<$type_>))?,)+
+            End,
+            $($title(Vec<$type_>),)+
         }
 
-        $($(
+        $(
             impl From<Vec<$type_>> for ListTag {
                 fn from(value: Vec<$type_>) -> Self {
                     ListTag::$title(value)
                 }
             }
-        )?)+
+        )+
 
         impl ListTag {
             pub fn id(&self) -> TagID {
                 match self {
-                    $(ListTag::$title{..} => TagID::$title,)+
+                    ListTag::End => TagID::End,
+                    $(ListTag::$title(_) => TagID::$title,)+
                 }
             }
             pub fn len(&self) -> usize {
                 match self {
-                    $(table_arm_filter!( $($type_)? : { ListTag::$title(arr) } else { ListTag::$title } )
-                    =>table_arm_filter!( $($type_)? : { arr.len()            } else { 0               } ),)+
+                    $(ListTag::$title(list) => list.len(),)+
+                    ListTag::End => 0,
                 }
             }
         }
