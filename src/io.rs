@@ -148,6 +148,21 @@ impl<T: NBTWrite> NBTWrite for Vec<T> {
     }
 }
 
+impl NBTWrite for Map {
+    fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, Error> {
+        // Writing goes like this:
+        // for each key/value pair, write:
+        //     TagID of value
+        //     name string
+        //     Payload
+        // After iteration, write TagID::End (0u8)
+        let write_size = self.iter().try_fold(0usize, |size, (key, tag)| {
+            tag.nbt_write_named(&mut writer, key)
+        })?;
+        Tag::End.nbt_write(writer).map(|size| write_size + size)
+    }
+}
+
 macro_rules! primitive_table {
     ($($primitive:ty)+) => {
         $(
@@ -210,6 +225,7 @@ macro_rules! tag_io {
             }
         }
 
+        // Complete!
         impl NBTRead for ListTag {
             fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
                 let id = TagID::nbt_read(&mut reader)?;
@@ -226,6 +242,7 @@ macro_rules! tag_io {
             }
         }
 
+        // Complete!
         impl NBTWrite for ListTag {
             fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize,Error> {
                 match self {
@@ -250,6 +267,11 @@ macro_rules! tag_io {
             fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
                 // Reading goes like this:
                 // Read TagID
+                // if TagID is not End or Unsupported,
+                //     Read string for name
+                //     Read tag
+                //     read next id
+                //     repeat until id is End or Unsupported
                 let mut map = Map::new();
                 let mut id = TagID::nbt_read(&mut reader)?;
                 while id != TagID::End {
@@ -259,7 +281,7 @@ macro_rules! tag_io {
                             TagID::$title => Tag::$title(<$type_>::nbt_read(&mut reader)?),
                         )+
                         TagID::Unsupported => return Err(Error::new(std::io::ErrorKind::Other, "Encountered unsuppored TagID in stream.")),
-                        TagID::End => Tag::End,
+                        TagID::End => panic!("This would not be a valid state, and should be impossible."),
                     };
                     map.insert(name, tag);
                     id = TagID::nbt_read(&mut reader)?;
@@ -268,9 +290,40 @@ macro_rules! tag_io {
             }
         }
 
-        impl NBTWrite for Map {
+        impl Tag {
+            fn nbt_write_named<W: Write, S: Into<String>>(&self, mut writer: W, name: S) -> Result<usize, Error> {
+                match self {
+                    $(
+                        Tag::$title(tag) => {
+                            // Ok(
+                            //     TagID::$title.nbt_write(&mut writer)? +
+                            //     name.into().nbt_write(&mut writer)? +
+                            //     tag.nbt_write(writer)?
+                            // )
+                            let id_size = TagID::$title.nbt_write(&mut writer)?;
+                            let key_size = name.into().nbt_write(&mut writer)?;
+                            let tag_size = tag.nbt_write(writer)?;
+                            Ok(id_size + key_size + tag_size)
+                        }
+                    )+
+                    Tag::End => {
+                        Err(Error::new(std::io::ErrorKind::Other, "Cannot write End named tag."))
+                    }
+                }
+            }
+        }
+
+        impl NBTWrite for Tag {
             fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, Error> {
-                todo!()
+                match self {
+                    $(
+                        Tag::$title(tag) => tag.nbt_write(writer),
+                    )+
+                    // Tag::End wouldn't exactly be valid to write,
+                    // so we'll just return Ok(0usize) since it would be
+                    // an empty type anyway.
+                    Tag::End => Ok(0usize),
+                }
             }
         }
 
@@ -287,7 +340,6 @@ mod tests {
     use super::*;
     #[test]
     fn size_test() {
-        
         let tag = Tag::List(ListTag::from(vec![vec![1,2,3],vec![1,2,3],vec![1,2,3]]));
         assert_eq!(53, tag.size_in_bytes());
     }
