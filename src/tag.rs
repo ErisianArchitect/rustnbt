@@ -65,7 +65,7 @@ macro_rules! tag_data {
 
         #[derive(Clone)]
         pub enum ListTag {
-            End,
+            Empty,
             $($title(Vec<$type_>),)+
         }
 
@@ -80,14 +80,14 @@ macro_rules! tag_data {
         impl ListTag {
             pub fn id(&self) -> TagID {
                 match self {
-                    ListTag::End => TagID::End,
+                    ListTag::Empty => TagID::End,
                     $(ListTag::$title(_) => TagID::$title,)+
                 }
             }
             pub fn len(&self) -> usize {
                 match self {
                     $(ListTag::$title(list) => list.len(),)+
-                    ListTag::End => 0,
+                    ListTag::Empty => 0,
                 }
             }
         }
@@ -115,11 +115,17 @@ impl From<&str> for Tag {
 
 impl TagID {
     /// PascalCase title of this TagID.
-    pub fn title(&self) -> &'static str {
+    pub fn title(self) -> &'static str {
+        if self == TagID::Unsupported {
+            return "Unsupported";
+        }
         TAG_TITLES[self.value()]
     }
     /// In the format of TAG_TagTitle.
-    pub fn name(&self) -> &'static str {
+    pub fn name(self) -> &'static str {
+        if self == TagID::Unsupported {
+            return "TAG_Unsupported";
+        }
         TAG_NAMES[self.value()]
     }
     /// Returns this TagID as a usize.
