@@ -237,7 +237,7 @@ macro_rules! tag_io {
                         }
                     )+
                     TagID::End => ListTag::End,
-                    TagID::Unsupported => ListTag::End,
+                    TagID::Unsupported => return Err(Error::new(std::io::ErrorKind::Other, "Unsupported tag id encountered in stream.")),
                 })
             }
         }
@@ -338,6 +338,11 @@ mod tests {
 
     use crate::tag::*;
     use super::*;
+
+    fn make_byte() -> Tag {
+        Tag::Byte(43)
+    }
+
     #[test]
     fn size_test() {
         let tag = Tag::List(ListTag::from(vec![vec![1,2,3],vec![1,2,3],vec![1,2,3]]));
