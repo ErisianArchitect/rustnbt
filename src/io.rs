@@ -6,7 +6,6 @@ use std::io::{BufReader, BufWriter, Cursor, Error, Read, Seek, SeekFrom, Write};
 
 use crate::{
     tag::*, 
-    table_arm_filter,
     tag_info_table,
 };
 
@@ -129,7 +128,8 @@ pub trait NBTWrite {
 
 impl NBTWrite for TagID {
     fn nbt_write<W: Write>(&self, writer: W) -> Result<usize, Error> {
-        Ok((self.value() as u8).nbt_write(writer)?)    }
+        (self.value() as u8).nbt_write(writer)
+    }
 }
 
 impl NBTWrite for String {
@@ -137,6 +137,14 @@ impl NBTWrite for String {
         let length: u16 = self.len() as u16;
         length.nbt_write(&mut writer)?;
         writer.write(self.as_bytes())
+    }
+}
+
+impl<T: NBTWrite> NBTWrite for Vec<T> {
+    fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, Error> {
+        (self.len() as u32).nbt_write(&mut writer)?;
+        write_array(writer, self.as_slice())
+            .map(|size| size + 4)
     }
 }
 
@@ -181,14 +189,14 @@ primitive_table![
 ];
 
 macro_rules! tag_io {
-    ($($id:literal $title:ident $($type_:ty)?)+) => {
+    ($($id:literal $title:ident $type_:ty)+) => {
 
 
         impl NBTSize for Tag {
             fn size_in_bytes(&self) -> usize {
                 match self {
-                    $(table_arm_filter!( $($type_)? : { Tag::$title(item)    } else { Tag::$title } )
-                    =>table_arm_filter!( $($type_)? : { item.size_in_bytes() } else { 0           } ),)+
+                    $(Tag::$title(tag) => tag.size_in_bytes(),)+
+                    Tag::End => 0,
                 }
             }
         }
@@ -196,8 +204,8 @@ macro_rules! tag_io {
         impl NBTSize for ListTag {
             fn size_in_bytes(&self) -> usize {
                 match self {
-                    $(table_arm_filter!($($type_)? : { ListTag::$title(arr)                                           } else { ListTag::$title } )
-                    =>table_arm_filter!($($type_)? : { arr.iter().map(|item| item.size_in_bytes()).sum::<usize>() + 5 } else { 5               } ),)+
+                    $(ListTag::$title(list) => list.iter().map(|item| item.size_in_bytes()).sum::<usize>() + 5,)+
+                    ListTag::End => 5,
                 }
             }
         }
@@ -207,22 +215,34 @@ macro_rules! tag_io {
                 let id = TagID::nbt_read(&mut reader)?;
                 Ok(match id {
                     $(
-                        TagID::$title => table_arm_filter!($($type_)? : { 
-                            {
-                                let length = u32::nbt_read(&mut reader)?;
-                                ListTag::$title(read_array(&mut reader, length as usize)?)
-                            }
-                        } else { 
-                            ListTag::End 
-                        }),
+                        TagID::$title => {
+                            let length = u32::nbt_read(&mut reader)?;
+                            ListTag::$title(read_array(&mut reader, length as usize)?)
+                        }
                     )+
+                    TagID::End => ListTag::End,
+                    TagID::Unsupported => ListTag::End,
                 })
             }
         }
 
         impl NBTWrite for ListTag {
             fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize,Error> {
-                todo!()
+                match self {
+                    $(
+                        ListTag::$title(list) => {
+                            TagID::$title.nbt_write(&mut writer)?;
+                            let length: u32 = list.len() as u32;
+                            length.nbt_write(&mut writer)?;
+                            list.nbt_write(writer).map(|size| size + 1)
+                        }
+                    )+
+                    ListTag::End => {
+                        TagID::End.nbt_write(&mut writer)?;
+                        0u32.nbt_write(writer)?;
+                        Ok(5)
+                    },
+                }
             }
         }
 
@@ -235,9 +255,10 @@ macro_rules! tag_io {
                 while id != TagID::End {
                     let name = String::nbt_read(&mut reader)?;
                     let tag = match id {
-                        $($(
+                        $(
                             TagID::$title => Tag::$title(<$type_>::nbt_read(&mut reader)?),
-                        )?)+
+                        )+
+                        TagID::Unsupported => return Err(Error::new(std::io::ErrorKind::Other, "Encountered unsuppored TagID in stream.")),
                         TagID::End => Tag::End,
                     };
                     map.insert(name, tag);
@@ -266,6 +287,7 @@ mod tests {
     use super::*;
     #[test]
     fn size_test() {
+        
         let tag = Tag::List(ListTag::from(vec![vec![1,2,3],vec![1,2,3],vec![1,2,3]]));
         assert_eq!(53, tag.size_in_bytes());
     }
