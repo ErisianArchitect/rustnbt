@@ -44,14 +44,12 @@ macro_rules! tag_data {
 
         #[derive(Clone)]
         pub enum Tag {
-            End,
             $($title($type_),)+
         }
 
         impl Tag {
             pub fn id(&self) -> TagID {
                 match self {
-                    Tag::End => TagID::End,
                     $(Tag::$title(_) => TagID::$title,)+
                 }
             }

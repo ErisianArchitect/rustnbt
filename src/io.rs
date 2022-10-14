@@ -14,8 +14,6 @@ pub enum NBTError {
     FromUtf8Error(#[from] std::string::FromUtf8Error),
     #[error("Unsupported Tag ID found.")]
     Unsupported,
-    #[error("Cannot write Tag::End as a named tag.")]
-    NamedTagError,
 }
 
 use crate::{
@@ -221,7 +219,6 @@ macro_rules! tag_io {
             fn size_in_bytes(&self) -> usize {
                 match self {
                     $(Tag::$title(tag) => tag.size_in_bytes(),)+
-                    Tag::End => 0,
                 }
             }
         }
@@ -316,10 +313,6 @@ macro_rules! tag_io {
                             Ok(id_size + key_size + tag_size)
                         }
                     )+
-                    Tag::End => {
-                        // HERE!
-                        Err(NBTError::NamedTagError)
-                    }
                 }
             }
         }
@@ -330,10 +323,6 @@ macro_rules! tag_io {
                     $(
                         Tag::$title(tag) => tag.nbt_write(writer),
                     )+
-                    // Tag::End wouldn't exactly be valid to write,
-                    // so we'll just return Ok(0usize) since it would be
-                    // an empty type anyway.
-                    Tag::End => Ok(0usize),
                 }
             }
         }
