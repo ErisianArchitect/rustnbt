@@ -4,22 +4,36 @@
 #[allow(unused)]
 use std::io::{BufReader, BufWriter, Cursor, Error, Read, Seek, SeekFrom, Write};
 
+use thiserror::Error as ThisError;
+
+#[derive(ThisError, Debug)]
+pub enum NBTError {
+    #[error("io error.")]
+    IO(#[from] std::io::Error),
+    #[error("Failed to read UTF-8 string.")]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
+    #[error("Unsupported Tag ID found.")]
+    Unsupported,
+    #[error("Cannot write Tag::End as a named tag.")]
+    NamedTagError,
+}
+
 use crate::{
     tag::*, 
     tag_info_table,
 };
 
-fn read_bytes<R: Read>(mut reader: R, length: usize) -> Result<Vec<u8>,Error> {
+fn read_bytes<R: Read>(mut reader: R, length: usize) -> Result<Vec<u8>,NBTError> {
     let mut buf: Vec<u8> = Vec::new();
     reader.take(length as u64).read_to_end(&mut buf)?;
     Ok(buf)
 }
 
-fn write_bytes<W: Write>(mut writer: W, data: &[u8]) -> Result<(), Error> {
-    writer.write_all(data)
+fn write_bytes<W: Write>(mut writer: W, data: &[u8]) -> Result<(), NBTError> {
+    Ok(writer.write_all(data)?)
 }
 
-fn read_array<R: Read, T: NBTRead>(mut reader: R, length: usize) -> Result<Vec<T>,Error> {
+fn read_array<R: Read, T: NBTRead>(mut reader: R, length: usize) -> Result<Vec<T>,NBTError> {
     (0..length)
         .map(|_| {
             T::nbt_read(&mut reader)
@@ -27,7 +41,7 @@ fn read_array<R: Read, T: NBTRead>(mut reader: R, length: usize) -> Result<Vec<T
         .collect()
 }
 
-fn write_array<W: Write, T: NBTWrite>(mut writer: W, data: &[T]) -> Result<usize, Error> {
+fn write_array<W: Write, T: NBTWrite>(mut writer: W, data: &[T]) -> Result<usize, NBTError> {
     data.iter()
         .map(|item| item.nbt_write(&mut writer))
         .sum()
@@ -88,18 +102,18 @@ pub trait NBTRead
 where
     Self: Sized,
 {
-    fn nbt_read<R: Read>(reader: R) -> Result<Self, Error>;
+    fn nbt_read<R: Read>(reader: R) -> Result<Self, NBTError>;
 }
 
 impl<T: NBTRead> NBTRead for Vec<T> {
-    fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+    fn nbt_read<R: Read>(mut reader: R) -> Result<Self, NBTError> {
         let length = u32::nbt_read(&mut reader)?;
         read_array(reader, length as usize)
     }
 }
 
 impl NBTRead for String {
-    fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+    fn nbt_read<R: Read>(mut reader: R) -> Result<Self, NBTError> {
         // 🦆 <-- Frank
         // Frank: How does this function work, eh?
         // Me: Well, you see, to read a string in NBT format, we first
@@ -108,40 +122,36 @@ impl NBTRead for String {
         //     and interpret those bytes as a utf-8 string.
         let length: u16 = u16::nbt_read(&mut reader)?;
         let strbytes = read_bytes(reader, length as usize)?;
-        if let Ok(result) = String::from_utf8(strbytes) {
-            Ok(result)
-        } else {
-            Err(Error::new(std::io::ErrorKind::Other, "Failed to convert bytes to UTF-8 string."))
-        }
+        Ok(String::from_utf8(strbytes)?)
     }
 }
 
 impl NBTRead for TagID {
-    fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+    fn nbt_read<R: Read>(mut reader: R) -> Result<Self, NBTError> {
         Ok(TagID::from(u8::nbt_read(reader)?))
     }
 }
 
 pub trait NBTWrite {
-    fn nbt_write<W: Write>(&self, writer: W) -> Result<usize, Error>;
+    fn nbt_write<W: Write>(&self, writer: W) -> Result<usize, NBTError>;
 }
 
 impl NBTWrite for TagID {
-    fn nbt_write<W: Write>(&self, writer: W) -> Result<usize, Error> {
+    fn nbt_write<W: Write>(&self, writer: W) -> Result<usize, NBTError> {
         (self.value() as u8).nbt_write(writer)
     }
 }
 
 impl NBTWrite for String {
-    fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, Error> {
+    fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, NBTError> {
         let length: u16 = self.len() as u16;
         length.nbt_write(&mut writer)?;
-        writer.write(self.as_bytes())
+        Ok(writer.write(self.as_bytes())?)
     }
 }
 
 impl<T: NBTWrite> NBTWrite for Vec<T> {
-    fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, Error> {
+    fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, NBTError> {
         (self.len() as u32).nbt_write(&mut writer)?;
         write_array(writer, self.as_slice())
             .map(|size| size + 4)
@@ -149,7 +159,7 @@ impl<T: NBTWrite> NBTWrite for Vec<T> {
 }
 
 impl NBTWrite for Map {
-    fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, Error> {
+    fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, NBTError> {
         // Writing goes like this:
         // for each key/value pair, write:
         //     TagID of value
@@ -159,7 +169,7 @@ impl NBTWrite for Map {
         let write_size = self.iter().try_fold(0usize, |size, (key, tag)| {
             tag.nbt_write_named(&mut writer, key)
         })?;
-        Tag::End.nbt_write(writer).map(|size| write_size + size)
+        TagID::End.nbt_write(writer).map(|size| write_size + size)
     }
 }
 
@@ -179,7 +189,7 @@ macro_rules! primitive_table {
             }
 
             impl NBTRead for $primitive {
-                fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+                fn nbt_read<R: Read>(mut reader: R) -> Result<Self, NBTError> {
                     let mut buf = [0u8; std::mem::size_of::<$primitive>()];
                     reader.read_exact(&mut buf)?;
                     Ok(Self::from_be_bytes(buf))
@@ -187,8 +197,8 @@ macro_rules! primitive_table {
             }
 
             impl NBTWrite for $primitive {
-                fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, Error> {
-                    writer.write(self.to_be_bytes().as_slice())
+                fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, NBTError> {
+                    Ok(writer.write(self.to_be_bytes().as_slice())?)
                 }
             }
         )+
@@ -227,7 +237,7 @@ macro_rules! tag_io {
 
         // Complete!
         impl NBTRead for ListTag {
-            fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+            fn nbt_read<R: Read>(mut reader: R) -> Result<Self, NBTError> {
                 let id = TagID::nbt_read(&mut reader)?;
                 Ok(match id {
                     $(
@@ -237,14 +247,14 @@ macro_rules! tag_io {
                         }
                     )+
                     TagID::End => ListTag::End,
-                    TagID::Unsupported => return Err(Error::new(std::io::ErrorKind::Other, "Unsupported tag id encountered in stream.")),
+                    TagID::Unsupported => return Err(NBTError::Unsupported),
                 })
             }
         }
 
         // Complete!
         impl NBTWrite for ListTag {
-            fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize,Error> {
+            fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize,NBTError> {
                 match self {
                     $(
                         ListTag::$title(list) => {
@@ -264,7 +274,7 @@ macro_rules! tag_io {
         }
 
         impl NBTRead for Map {
-            fn nbt_read<R: Read>(mut reader: R) -> Result<Self, Error> {
+            fn nbt_read<R: Read>(mut reader: R) -> Result<Self, NBTError> {
                 // Reading goes like this:
                 // Read TagID
                 // if TagID is not End or Unsupported,
@@ -280,7 +290,7 @@ macro_rules! tag_io {
                         $(
                             TagID::$title => Tag::$title(<$type_>::nbt_read(&mut reader)?),
                         )+
-                        TagID::Unsupported => return Err(Error::new(std::io::ErrorKind::Other, "Encountered unsuppored TagID in stream.")),
+                        TagID::Unsupported => return Err(NBTError::Unsupported),
                         TagID::End => panic!("This would not be a valid state, and should be impossible."),
                     };
                     map.insert(name, tag);
@@ -291,7 +301,7 @@ macro_rules! tag_io {
         }
 
         impl Tag {
-            fn nbt_write_named<W: Write, S: Into<String>>(&self, mut writer: W, name: S) -> Result<usize, Error> {
+            fn nbt_write_named<W: Write, S: Into<String>>(&self, mut writer: W, name: S) -> Result<usize, NBTError> {
                 match self {
                     $(
                         Tag::$title(tag) => {
@@ -307,14 +317,15 @@ macro_rules! tag_io {
                         }
                     )+
                     Tag::End => {
-                        Err(Error::new(std::io::ErrorKind::Other, "Cannot write End named tag."))
+                        // HERE!
+                        Err(NBTError::NamedTagError)
                     }
                 }
             }
         }
 
         impl NBTWrite for Tag {
-            fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, Error> {
+            fn nbt_write<W: Write>(&self, mut writer: W) -> Result<usize, NBTError> {
                 match self {
                     $(
                         Tag::$title(tag) => tag.nbt_write(writer),
@@ -338,6 +349,21 @@ mod tests {
 
     use crate::tag::*;
     use super::*;
+
+    use thiserror::Error as ThisError;
+
+    #[derive(ThisError, Debug)]
+    enum TestError {
+        #[error("io error.")]
+        IoError(#[from] std::io::Error),
+        #[error("Unsupported tag ID.")]
+        Unsupported,
+    }
+
+    fn testit() -> Result<String, TestError> {
+        Err(TestError::IoError(std::io::Error::new(std::io::ErrorKind::Other, "Test")))
+        //Err(TestError::Unsupported)
+    }
 
     fn make_byte() -> Tag {
         Tag::Byte(43)
