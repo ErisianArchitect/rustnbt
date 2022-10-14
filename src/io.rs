@@ -361,6 +361,7 @@ mod tests {
     use crate::tag::*;
     use super::*;
 
+    /// A simple test tag that has some basic values.
     fn test_tag() -> Tag {
         let byte = Tag::Byte(43);
         let short = Tag::Short(1023);
