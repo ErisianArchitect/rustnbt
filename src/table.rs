@@ -4,7 +4,9 @@
 macro_rules! tag_info_table {
     ($macro:ident) => {
         $macro!{
-            00  End
+            /*
+            00  End                 _
+            */
             01  Byte                i8
             02  Short               i16
             03  Int                 i32
