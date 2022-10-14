@@ -320,6 +320,23 @@ macro_rules! tag_io {
                     )+
                 }
             }
+
+            fn nbt_read_named<R: Read>(reader: &mut R) -> Result<(String, Tag), NbtError> {
+                let id = TagID::nbt_read(reader)?;
+                if matches!(id, TagID::End | TagID::Unsupported) {
+                    return Err(NbtError::Unsupported);
+                }
+                let name = String::nbt_read(reader)?;
+                let tag = match id {
+                    $(
+                        TagID::$title => {
+                            Tag::$title(<$type_>::nbt_read(reader)?)
+                        }
+                    )+
+                    _ => unreachable!("Impossible state."),
+                };
+                Ok((name, tag))
+            }
         }
 
         impl NbtWrite for Tag {
@@ -343,21 +360,6 @@ mod tests {
 
     use crate::tag::*;
     use super::*;
-
-    use thiserror::Error as ThisError;
-
-    #[derive(ThisError, Debug)]
-    enum TestError {
-        #[error("io error.")]
-        IoError(#[from] std::io::Error),
-        #[error("Unsupported tag ID.")]
-        Unsupported,
-    }
-
-    fn testit() -> Result<String, TestError> {
-        Err(TestError::IoError(std::io::Error::new(std::io::ErrorKind::Other, "Test")))
-        //Err(TestError::Unsupported)
-    }
 
     fn test_tag() -> Tag {
         let byte = Tag::Byte(43);
@@ -413,10 +415,11 @@ mod tests {
         use std::fs::*;
         let mut file = File::create("test_write.nbt").expect("Failed to create file.");
         let write_size = tag.nbt_write_named(&mut file, "Root").expect("Failed to write tag.");
-        TagID::End.nbt_write(&mut file).expect("Failure.");
-        println!("Write size: {}", write_size + 1);
+        println!("Write size: {}", write_size);
         let mut file = File::open("test_write.nbt").expect("Failed to open file.");
-        let tag = Tag::Compound(Map::nbt_read(&mut file).expect("Fail is a fuck."));
-        println!("Tag size: {}", tag.size_in_bytes())
+        let (name, tag) = Tag::nbt_read_named(&mut file).expect("Failure.");
+        println!("    Name: {name}");
+        println!("Tag Type: {}", tag.title());
+        println!("    Size: {}", tag.size_in_bytes());
     }
 }
