@@ -14,6 +14,7 @@ use crate::family::*;
 
 pub type Map = IndexMap<String, Tag>;
 
+// TODO: I was planning on replacing ByteArray and ListTag::Byte with Vec<byte>.
 #[allow(non_camel_case_types)]
 pub union byte {
     pub unsigned: u8,
