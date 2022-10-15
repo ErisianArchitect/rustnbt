@@ -59,6 +59,7 @@ fn vec_i8_to_vec_u8(v: Vec<i8>) -> Vec<u8> {
 
 fn read_bytes<R: Read>(reader: &mut R, length: usize) -> Result<Vec<u8>,NbtError> {
     let mut buf: Vec<u8> = Vec::new();
+    // let mut buf: Vec<u8> = Vec::with_capacity(length);
     reader.take(length as u64).read_to_end(&mut buf)?;
     Ok(buf)
 }
@@ -485,14 +486,19 @@ mod tests {
         (0..1000).for_each(|i| {
             let name = format!("Item{i}");
             let tag = match i {
+                69 => {
+                    Tag::compound([
+                        ("It's morbin time!", Tag::string("https://www.youtube.com/watch?v=DhtEKCqmvU4"))  
+                    ])
+                }
                 420 => {
                     Tag::compound([
                         ("Bool Bideo", Tag::string("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))                        
                     ])
                 }
-                69 => {
+                666 => {
                     Tag::compound([
-                        ("It's morbin time!", Tag::string("https://www.youtube.com/watch?v=DhtEKCqmvU4"))  
+                        ("Happy Halloween!", Tag::string("https://www.youtube.com/watch?v=Qay_B3WHW-g"))                        
                     ])
                 }
                 _ => {
@@ -537,49 +543,19 @@ mod tests {
     }
 
     #[test]
-    fn tag_test() {
-        let tag = test_tag();
-        if let Tag::Compound(map) = tag {
-            let inner = map.get("string").expect("Not string");
-            if let Tag::String(string) = inner {
-                println!("{}", string);
-            }
-        };
-    }
-
-    #[test]
-    fn timing_test() {
-        // use std::fs::*;
-        // use std::time::*;
-        // let now = Instant::now();
-        // let tag = test_tag();
-        // (0..1).for_each(|_| {
-        //     let mut file = File::create("./ignore/test.nbt")
-        //         .expect("Failed to create file.");
-        //     let mut file = BufWriter::new(file);
-        //     let write_size = tag.nbt_write_named(file.get_mut(), "TestRoot")
-        //         .expect("Failed to write named tag.");
-        //     let mut file = File::open("./ignore/test.nbt")
-        //         .expect("Failed to open file.");
-        //     let mut file = BufReader::new(file);
-        //     let read_tag = Tag::nbt_read_named(file.get_mut())
-        //         .expect("Failed to read named tag.");
-        // });
-        // let dur = now.elapsed();
-        // println!("Millis: {}", dur.as_millis());
-    }
-
-    #[test]
     fn size_test() {
-        let testtag = big_compound(test_tag(), 100);
-        let testtag = NamedTag::new(testtag);
+        //let testtag = big_compound(test_tag(), 100);
+        //let testtag = NamedTag::new(testtag);
         // println!("Size: {}", testtag.size_in_bytes());
         use std::fs::*;
-        let mut file = File::create("./ignore/big.nbt").expect("Failed to create file.");
-        let write_size = testtag.nbt_write(&mut file).expect("Failed to write tag.");
-        println!("Write size: {}", write_size);
+        // let mut file = File::create("./ignore/big.nbt").expect("Failed to create file.");
+        // let mut writer = BufWriter::with_capacity(mebibytes(64), file);
+        // let write_size = testtag.nbt_write(writer.get_mut()).expect("Failed to write tag.");
+        // println!("Write size: {}", write_size);
         let mut file = File::open("./ignore/big.nbt").expect("Failed to open file.");
-        let readtag = NamedTag::nbt_read(&mut file).expect("Failure.");
+        let mut reader = BufReader::with_capacity(mebibytes(64), file);
+        let readtag = NamedTag::nbt_read(reader.get_mut()).expect("Failure.");
         println!("Tag Type: {}", readtag.tag().title());
+        println!("Data Size: {}", readtag.tag().size_in_bytes());
     }
 }

@@ -208,7 +208,7 @@ impl Tag {
     pub fn bytes<T: Into<u8>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::ByteArray(
             it.into_iter()
-                .map(|value| unsafe { std::mem::transmute::<u8,i8>(value.into()) })
+                .map(|value| value.into() as i8)
                 .collect()
         )
     }
@@ -324,17 +324,5 @@ where
 impl From<NamedTag> for (String, Tag) {
     fn from(value: NamedTag) -> Self {
         (value.name, value.tag)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn tag_test() {
-        use super::*;
-        let tag: Tag = Tag::List(ListTag::from(vec![1, 2, 3, 4]));
-        let tag = Tag::string("Hello, world!");
-        println!("Tag: {}", tag);
-        println!("Tag ID: {}", TagID::String);
     }
 }
