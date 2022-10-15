@@ -16,3 +16,4 @@ Cargo.lock
 /Cargo.lock
 expand.rs
 /ignore
+expand.bat
