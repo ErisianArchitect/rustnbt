@@ -12,6 +12,8 @@ use crate::tag_info_table;
 use crate::io::*;
 use crate::family::*;
 
+pub trait Nbt<Family: NbtFamily> {}
+
 pub type Map = IndexMap<String, Tag>;
 
 pub trait NbtType {
