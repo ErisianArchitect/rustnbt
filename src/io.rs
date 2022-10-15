@@ -21,15 +21,50 @@ use crate::{
     tag_info_table,
 };
 
+const fn kib(size: usize) -> usize {
+    size * 1024
+}
+
+const fn mib(size: usize) -> usize {
+    kib(kib(1)) * size
+}
+
+const fn gib(size: usize) -> usize {
+    mib(kib(1)) * size
+}
+
+fn vec_u8_to_vec_i8(v: Vec<u8>) -> Vec<i8> {
+    let mut v = std::mem::ManuallyDrop::new(v);
+
+    let p = v.as_mut_ptr();
+    let len = v.len();
+    let cap = v.capacity();
+
+    unsafe { Vec::from_raw_parts(p as *mut i8, len, cap) }
+}
+
+fn vec_i8_to_vec_u8(v: Vec<i8>) -> Vec<u8> {
+    let mut v = std::mem::ManuallyDrop::new(v);
+
+    let p = v.as_mut_ptr();
+    let len = v.len();
+    let cap = v.capacity();
+
+    unsafe { Vec::from_raw_parts(p as *mut u8, len, cap) }
+}
+
 fn read_bytes<R: Read>(reader: &mut R, length: usize) -> Result<Vec<u8>,NbtError> {
     let mut buf: Vec<u8> = Vec::new();
+    let mut reader = BufReader::with_capacity(length.min(mib(64)), reader);
     reader.take(length as u64).read_to_end(&mut buf)?;
     Ok(buf)
 }
 
-fn write_bytes<W: Write>(writer: &mut W, data: &[u8]) -> Result<(), NbtError> {
-    Ok(writer.write_all(data)?)
+fn write_bytes<W: Write>(writer: &mut W, data: &[u8]) -> Result<usize, NbtError> {
+    let mut writer = BufWriter::with_capacity(data.len().min(mib(64)), writer);
+    Ok(writer.write_all(data).map(|_| data.len())?)
 }
+
 
 fn read_array<R: Read, T: NbtRead>(reader: &mut R, length: usize) -> Result<Vec<T>,NbtError> {
     (0..length)
@@ -43,10 +78,6 @@ fn write_array<W: Write, T: NbtWrite>(writer: &mut W, data: &[T]) -> Result<usiz
     data.iter()
         .map(|item| item.nbt_write(writer))
         .sum()
-    // data.iter()
-    //     .try_fold(0usize, |size, item| {
-    //         Ok(item.nbt_write(writer)? + size)
-    //     })
 }
 
 /// Trait that gives the serialization size of various values.
@@ -107,10 +138,25 @@ where
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError>;
 }
 
-impl<T: NbtRead> NbtRead for Vec<T> {
+impl<T: NbtRead + Nbt<Block<Byte>>> NbtRead for Vec<T> {
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
         let length = u32::nbt_read(reader)?;
         read_array(reader, length as usize)
+    }
+}
+
+impl NbtRead for Vec<i8> {
+    fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
+        let length = u32::nbt_read(reader)?;
+        let bytes = read_bytes(reader, length as usize)?;
+        Ok(vec_u8_to_vec_i8(bytes))
+    }
+}
+
+impl NbtRead for Vec<u8> {
+    fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
+        let length = u32::nbt_read(reader)?;
+        read_bytes(reader, length as usize)
     }
 }
 
@@ -155,11 +201,26 @@ impl NbtWrite for String {
     }
 }
 
-impl<T: NbtWrite> NbtWrite for Vec<T> {
+impl<T: NbtWrite + Nbt<Block<Byte>>> NbtWrite for Vec<T> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
         write_array(writer, self.as_slice())
             .map(|size| size + 4)
+    }
+}
+
+impl NbtWrite for Vec<i8> {
+    fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
+        (self.len() as u32).nbt_write(writer)?;
+        let u8slice: &[u8] = unsafe { std::slice::from_raw_parts(self.as_slice().as_ptr() as *const u8, self.len()) };
+        Ok(write_bytes(writer, u8slice)?)
+    }
+}
+
+impl NbtWrite for Vec<u8> {
+    fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
+        (self.len() as u32).nbt_write(writer)?;
+        Ok(write_bytes(writer, &self)?)
     }
 }
 
@@ -179,7 +240,7 @@ impl NbtWrite for Map {
 }
 
 macro_rules! primitive_table {
-    ($($primitive:ty)+) => {
+    ($($primitive:ident $(write = $writer:ident)? $(read = $read:ident)?)+) => {
         $(
             impl NbtSize for $primitive {
                 fn size_in_bytes(&self) -> usize {
@@ -219,7 +280,7 @@ primitive_table![
 ];
 
 macro_rules! tag_io {
-    ($($id:literal $title:ident $type_:ty)+) => {
+    ($($id:literal $title:ident $type_:ty $([$($impl:ty),*])?)+) => {
 
 
         impl NbtSize for Tag {
@@ -361,6 +422,12 @@ mod tests {
     use crate::tag::*;
     use super::*;
 
+    macro_rules! discard {
+        ($($_:tt)*) => {
+            
+        };
+    }
+
     /// A simple test tag that has some basic values.
     fn test_tag() -> Tag {
         let byte = Tag::Byte(43);
@@ -370,7 +437,7 @@ mod tests {
         let float = Tag::Float(3.14);
         let double = Tag::Double(420.69);
         let bytearray = Tag::ByteArray((-128i8..=127).collect());
-        let string = Tag::String(String::from("Hello, world!"));
+        let string = Tag::string("Hello, world!");
         let string_list = Tag::List(
             ListTag::String(vec![
                     String::from("One"),
@@ -379,11 +446,16 @@ mod tests {
                 ]
             )
         );
+        let empty_list = Tag::List(ListTag::Empty);
         let mut compound = Map::new();
-        compound.insert(String::from("One"), Tag::Int(1));
-        compound.insert(String::from("Two"), Tag::String(String::from("The quick brown fox jumps over the lazy dog.")));
-        compound.insert(String::from("Three"), Tag::Float(3.33));
+        (0..10).for_each(|i| {
+            compound.insert(format!("Item{i}").to_owned(), Tag::Int(i));
+        });
         let compound = Tag::Compound(compound);
+        let compound1 = Tag::compound([
+           ("test", 3i8.into()),
+           ("wow", Tag::string("Hello, world!")),
+        ]);
         let intarray = Tag::IntArray(vec![1000000, 1009300, 1000020]);
         let longarray = Tag::LongArray((0i64..10i64).map(|v| v.wrapping_mul(1000)).collect());
         let mut tagroot = Map::new();
@@ -393,6 +465,7 @@ mod tests {
             };
         }
         root!{
+            compound1
             byte
             short
             int
@@ -405,8 +478,20 @@ mod tests {
             compound
             intarray
             longarray
+            empty_list
         }
         Tag::Compound(tagroot)
+    }
+
+    #[test]
+    fn tag_test() {
+        let tag = test_tag();
+        if let Tag::Compound(map) = tag {
+            let inner = map.get("string").expect("Not string");
+            if let Tag::String(string) = inner {
+                println!("{}", string);
+            }
+        };
     }
 
     #[test]
@@ -414,17 +499,17 @@ mod tests {
         use std::fs::*;
         use std::time::*;
         let now = Instant::now();
-        (0..1).for_each(|_| {
-            let tag = test_tag();
+        let tag = test_tag();
+        (0..100).for_each(|_| {
             let mut file = File::create("./ignore/test.nbt")
                 .expect("Failed to create file.");
             let mut file = BufWriter::new(file);
-            let write_size = tag.nbt_write_named(&mut file, "TestRoot")
+            let write_size = tag.nbt_write_named(file.get_mut(), "TestRoot")
                 .expect("Failed to write named tag.");
             let mut file = File::open("./ignore/test.nbt")
                 .expect("Failed to open file.");
             let mut file = BufReader::new(file);
-            let read_tag = Tag::nbt_read_named(&mut file)
+            let read_tag = Tag::nbt_read_named(file.get_mut())
                 .expect("Failed to read named tag.");
         });
         let dur = now.elapsed();
@@ -444,7 +529,7 @@ mod tests {
         println!("    Name: {name}");
         println!("Tag Type: {}", tag.title());
         println!("    Size: {}", tag.size_in_bytes());
-        println!("     Tag: {:#?}", tag);
+        println!("     Tag: {}", tag);
         println!("   First: {}", testtag.size_in_bytes());
         println!("    Last: {}", tag.size_in_bytes());
     }
