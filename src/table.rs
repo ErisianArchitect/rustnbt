@@ -1,9 +1,4 @@
-use crate::tag::{
-    Byte,
-    Array,
-    Primitive,
-    Allow, Block
-};
+use crate::family::*;
 
 /// $id:literal $name:ident $($type_:ty)?
 #[macro_export]

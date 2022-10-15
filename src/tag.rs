@@ -10,28 +10,9 @@ use num_traits::{
 };
 use crate::tag_info_table;
 use crate::io::*;
+use crate::family::*;
 
 pub type Map = IndexMap<String, Tag>;
-
-pub trait NbtFamily {}
-pub trait NbtFamilyFlag {}
-
-pub trait Nbt<Family: NbtFamily> {}
-
-pub struct Allow<Family: NbtFamilyFlag>(Family);
-impl<Family: NbtFamilyFlag> NbtFamily for Allow<Family> {}
-
-pub struct Block<Family: NbtFamilyFlag>(Family);
-impl<Family: NbtFamilyFlag> NbtFamily for Block<Family> {}
-
-pub struct Primitive;
-impl NbtFamilyFlag for Primitive {}
-
-pub struct Byte;
-impl NbtFamilyFlag for Byte {}
-
-pub struct Array;
-impl NbtFamilyFlag for Array {}
 
 pub trait NbtType {
     // I don't know what this trait should have.
