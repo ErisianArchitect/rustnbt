@@ -5,7 +5,8 @@ This implements Minecraft's NBT format, then adds some tags to the format.
 
 # Coverage
 ```rs
-  ID  Name                Type
+//ID  Name                Type         
+//=====================================
   01  Byte                i8
   02  Short               i16
   03  Int                 i32
@@ -18,6 +19,7 @@ This implements Minecraft's NBT format, then adds some tags to the format.
   10  Compound            Map
   11  IntArray            Vec::<i32>
   12  LongArray           Vec::<i64>
+//==Extensions=========================
   13  UByte               u8
   14  UShort              u16
   15  UInt                u32
