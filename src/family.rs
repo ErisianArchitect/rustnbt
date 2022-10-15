@@ -1,21 +1,34 @@
-
+use std::marker::PhantomData;
 
 pub trait NbtFamily {}
-pub trait NbtFamilyFlag {}
+pub trait Flag {}
 
-pub trait Nbt<Family: NbtFamily> {}
+macro_rules! make_families {
+    ($($name:ident$(<$($tag:ident$(: $trait_:ident)?),+>)?,)+) => {
+        $(
+            pub  struct $name$(<$($tag $(: $trait_)? ,)+>($(PhantomData<$tag>),+))?;
+            impl$(<$($tag$(: $trait_)?,)+>)? NbtFamily for $name$(<$($tag,)+>)? {}
+        )+
+    };
+}
 
-pub struct Allow<Family: NbtFamilyFlag>(Family);
-impl<Family: NbtFamilyFlag> NbtFamily for Allow<Family> {}
+macro_rules! make_flags {
+    ($($name:ident),+) => {
+        $(
+            pub struct $name;
+            impl Flag for $name {}
+        )+
+    };
+}
 
-pub struct Block<Family: NbtFamilyFlag>(Family);
-impl<Family: NbtFamilyFlag> NbtFamily for Block<Family> {}
+make_families![
+    Allow<F: Flag>,
+    Block<F: Flag>,
+];
 
-pub struct Primitive;
-impl NbtFamilyFlag for Primitive {}
-
-pub struct Byte;
-impl NbtFamilyFlag for Byte {}
-
-pub struct Array;
-impl NbtFamilyFlag for Array {}
+make_flags![
+    Primitive,
+    Byte,
+    Array,
+    Special
+];
