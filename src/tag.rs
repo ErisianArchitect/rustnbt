@@ -12,8 +12,6 @@ use crate::tag_info_table;
 use crate::io::*;
 use crate::family::*;
 
-pub trait Nbt<Family: NbtFamily> {}
-
 pub type Map = IndexMap<String, Tag>;
 
 pub trait NbtType {
@@ -34,7 +32,7 @@ impl<T: Into<Tag>> ToNbt for T {
 
 // This macro is not for those with weak dispositions.
 macro_rules! tag_data {
-    ($($id:literal $title:ident $type_:ty $([$($family:ty),*])?)+) => {
+    ($($id:literal $title:ident $type_:ty $([$($impl:path),*])?)+) => {
 
         $(
             impl NbtType for $type_ {
@@ -45,17 +43,17 @@ macro_rules! tag_data {
             }
         )+
 
-        $(
-            $($(
-                impl Nbt<$family> for $type_ {}
-            )*)?
-        )+
+        $($($(
+            impl $impl for $type_ {}
+        )*)?)+
 
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
         pub enum TagID {
             End = 0,
             Unsupported = -1,
-            $($title = $id,)+
+            $(
+                $title = $id,
+            )+
         }
 
         impl TagID {
@@ -81,12 +79,6 @@ macro_rules! tag_data {
                     TagID::End => "TAG_End",
                     TagID::Unsupported => "TAG_Unsupported",
                 }
-            }
-        }
-
-        impl Display for TagID {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_fmt(format_args!("{:#?}", self))
             }
         }
 
@@ -178,6 +170,12 @@ macro_rules! tag_data {
 }
 
 tag_info_table!(tag_data);
+
+impl Display for TagID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{:#?}", self))
+    }
+}
 
 impl TagID {
     /// Returns this TagID as a usize.
