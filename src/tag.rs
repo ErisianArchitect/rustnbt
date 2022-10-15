@@ -288,8 +288,8 @@ impl From<&str> for Tag {
 
 #[derive(Clone, Debug)]
 pub struct NamedTag {
-    name: String,
-    tag: Tag,
+    pub(crate) name: String,
+    pub(crate) tag: Tag,
 }
 
 impl NamedTag {
