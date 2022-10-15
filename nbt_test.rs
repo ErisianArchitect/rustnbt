@@ -1,26 +1,12 @@
 #![allow(unused)]
 
-use rustnbt::{
-    tag::*,
-    io::*,
-};
+use rustnbt::{io::*, tag::*};
 
 use std::{
-    io::{
-        Write,
-        Read,
-        Error,
-        Cursor,
-        BufReader,
-        BufWriter,
-    },
-    fs::{
-        File,
-    },
-    time::{
-        Duration,
-        Instant,
-    }, ops::Div
+    fs::File,
+    io::{BufReader, BufWriter, Cursor, Error, Read, Write},
+    ops::Div,
+    time::{Duration, Instant},
 };
 
 #[inline(always)]
@@ -47,18 +33,12 @@ fn method1<R: Read>(mut reader: R) -> Result<Vec<i64>, Error> {
 }
 
 fn method2<R: Read>(mut reader: R) -> Result<Vec<i64>, Error> {
-    (0..1048576i64).map(|_| {
-        read_long(&mut reader)
-    })
-    .collect()
+    (0..1048576i64).map(|_| read_long(&mut reader)).collect()
 }
 
 fn write_longs<W: Write>(mut writer: W) -> Result<usize, Error> {
     let mut writer = BufWriter::with_capacity(1048576, writer);
-    (0..1048576i64).map(|i| {
-        write_long(&mut writer, i)
-    })
-    .sum()
+    (0..1048576i64).map(|i| write_long(&mut writer, i)).sum()
 }
 
 /*
@@ -68,19 +48,25 @@ I have three ideas for methods:
     read/write in a batch, but also use custom reordering
 */
 
-fn main() {
-    use std::fs::{
-        File,
-    };
-    let avg = (0..10).map(|_| {
-        let mut file = File::create("./ignore/longs").expect("Failed to create file.");
-        let elapsed = timer(|| {
-            write_longs(file).expect("Failed to write longs.");
-        });
-        println!("Elapsed: {}", elapsed.as_millis());
-        elapsed.as_millis()
-    })
-    .sum::<u128>().div(10);
-    println!("Average: {}", avg);
+/// A const function that returns the number of bytes that size kibibytes would be.
+const fn kibibytes(size: usize) -> usize {
+    size << 10
 }
 
+/// A const function that returns the number of bytes that size mebibytes would be.
+const fn mebibytes(size: usize) -> usize {
+    size << 20
+}
+
+/// A const function that returns the number of bytes that size gibibytes would be.
+const fn gibibytes(size: usize) -> usize {
+    size << 30
+}
+
+fn main() {
+    use std::fs::File;
+
+    println!("1KiB: {}", kibibytes(1024 * 1024));
+    println!("1MiB: {}", mebibytes(1024));
+    println!("1GiB: {}", gibibytes(1));
+}

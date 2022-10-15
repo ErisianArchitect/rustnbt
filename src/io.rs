@@ -1,10 +1,10 @@
 // https://wiki.vg/NBT
 // https://minecraft.fandom.com/wiki/NBT_format
 
+use crate::family::*;
 #[allow(unused)]
 use std::io::{BufReader, BufWriter, Cursor, Error, Read, Seek, SeekFrom, Write};
 use std::ops::Mul;
-use crate::family::*;
 
 use thiserror::Error as ThisError;
 
@@ -18,23 +18,21 @@ pub enum NbtError {
     Unsupported,
 }
 
-use crate::{
-    tag::*, 
-    tag_info_table,
-};
+use crate::{tag::*, tag_info_table};
 
-
-/// gets Kibibytes
+/// A const function that returns the number of bytes that size kibibytes would be.
 const fn kibibytes(size: usize) -> usize {
-    size * 1024
+    size << 10
 }
 
+/// A const function that returns the number of bytes that size mebibytes would be.
 const fn mebibytes(size: usize) -> usize {
-    kibibytes(kibibytes(1)) * size
+    size << 20
 }
 
+/// A const function that returns the number of bytes that size gibibytes would be.
 const fn gibibytes(size: usize) -> usize {
-    mebibytes(kibibytes(1)) * size
+    size << 30
 }
 
 fn vec_u8_to_vec_i8(v: Vec<u8>) -> Vec<i8> {
@@ -57,7 +55,7 @@ fn vec_i8_to_vec_u8(v: Vec<i8>) -> Vec<u8> {
     unsafe { Vec::from_raw_parts(p as *mut u8, len, cap) }
 }
 
-fn read_bytes<R: Read>(reader: &mut R, length: usize) -> Result<Vec<u8>,NbtError> {
+fn read_bytes<R: Read>(reader: &mut R, length: usize) -> Result<Vec<u8>, NbtError> {
     let mut buf: Vec<u8> = Vec::new();
     // let mut buf: Vec<u8> = Vec::with_capacity(length);
     reader.take(length as u64).read_to_end(&mut buf)?;
@@ -68,25 +66,20 @@ fn write_bytes<W: Write>(writer: &mut W, data: &[u8]) -> Result<usize, NbtError>
     Ok(writer.write_all(data).map(|_| data.len())?)
 }
 
-
-fn read_array<R, T>(reader: &mut R, length: usize) -> Result<Vec<T>,NbtError>
+fn read_array<R, T>(reader: &mut R, length: usize) -> Result<Vec<T>, NbtError>
 where
     R: Read,
-    T: NbtRead {
-    (0..length)
-        .map(|_| {
-            T::nbt_read(reader)
-        })
-        .collect()
+    T: NbtRead,
+{
+    (0..length).map(|_| T::nbt_read(reader)).collect()
 }
 
 fn write_array<W, T>(writer: &mut W, data: &[T]) -> Result<usize, NbtError>
 where
     W: Write,
-    T: NbtWrite {
-        data.iter()
-            .map(|item| item.nbt_write(writer))
-            .sum()
+    T: NbtWrite,
+{
+    data.iter().map(|item| item.nbt_write(writer)).sum()
 }
 
 /// Trait that gives the serialization size of various values.
@@ -118,37 +111,37 @@ impl NbtSize for Vec<String> {
     /// the number of bytes reserved for the length, which is
     /// a requirement to write this to memory.
     fn size_in_bytes(&self) -> usize {
-        self.iter().map(|value| {
-            value.size_in_bytes()
-        })
-        .sum::<usize>() + 4usize
+        self.iter()
+            .map(|value| value.size_in_bytes())
+            .sum::<usize>()
+            + 4usize
     }
 }
 
 impl NbtSize for Map {
     fn size_in_bytes(&self) -> usize {
-        self.iter().map(|(name, tag)| {
-                name.size_in_bytes() + tag.size_in_bytes() + 1
-            })
-            .sum::<usize>() + 1
+        self.iter()
+            .map(|(name, tag)| name.size_in_bytes() + tag.size_in_bytes() + 1)
+            .sum::<usize>()
+            + 1
     }
 }
 
 impl NbtSize for Vec<Map> {
     fn size_in_bytes(&self) -> usize {
-        self.iter().map(|value| {
-            value.size_in_bytes()
-        })
-        .sum::<usize>() + 4
+        self.iter()
+            .map(|value| value.size_in_bytes())
+            .sum::<usize>()
+            + 4
     }
 }
 
 impl NbtSize for Vec<ListTag> {
     fn size_in_bytes(&self) -> usize {
-        self.iter().map(|value| {
-            value.size_in_bytes()
-        })
-        .sum::<usize>() + 4
+        self.iter()
+            .map(|value| value.size_in_bytes())
+            .sum::<usize>()
+            + 4
     }
 }
 
@@ -225,15 +218,16 @@ impl NbtWrite for String {
 impl<T: NbtWrite + Not<byte>> NbtWrite for Vec<T> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
-        write_array(writer, self.as_slice())
-            .map(|size| size + 4)
+        write_array(writer, self.as_slice()).map(|size| size + 4)
     }
 }
 
 impl NbtWrite for Vec<i8> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
-        let u8slice: &[u8] = unsafe { std::slice::from_raw_parts(self.as_slice().as_ptr() as *const u8, self.len()) };
+        let u8slice: &[u8] = unsafe {
+            std::slice::from_raw_parts(self.as_slice().as_ptr() as *const u8, self.len())
+        };
         Ok(write_bytes(writer, u8slice)? + 4)
     }
 }
@@ -254,7 +248,8 @@ impl NbtWrite for Map {
         //     Payload
         // After iteration, write TagID::End (0u8)
         let write_size = self.iter().try_fold(0usize, |size, (key, tag)| {
-            tag.nbt_write_named(writer, key).map(|written| written + size)
+            tag.nbt_write_named(writer, key)
+                .map(|written| written + size)
         })?;
         TagID::End.nbt_write(writer).map(|size| write_size + size)
     }

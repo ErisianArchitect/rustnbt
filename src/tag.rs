@@ -1,16 +1,13 @@
 // https://wiki.vg/NBT
 
+use crate::family::*;
+use crate::io::*;
+use crate::tag_info_table;
+use indexmap::IndexMap;
+use num_traits::ToPrimitive;
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::marker::PhantomData;
-use indexmap::IndexMap;
-use num_traits::{
-    ToPrimitive,
-    
-};
-use crate::tag_info_table;
-use crate::io::*;
-use crate::family::*;
 
 pub type Map = IndexMap<String, Tag>;
 
@@ -215,66 +212,48 @@ impl Tag {
     }
 
     pub fn bytearray<T: Into<i8>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
-        Tag::ByteArray(
-            it.into_iter()
-                .map(T::into)
-                .collect()
-        )
+        Tag::ByteArray(it.into_iter().map(T::into).collect())
     }
 
     pub fn bytes<T: Into<u8>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
-        Tag::ByteArray(
-            it.into_iter()
-                .map(|value| value.into() as i8)
-                .collect()
-        )
+        Tag::ByteArray(it.into_iter().map(|value| value.into() as i8).collect())
     }
-    
+
     pub fn intarray<T: Into<i32>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
-        Tag::IntArray(
-            it.into_iter()
-                .map(T::into)
-                .collect()
-        )
+        Tag::IntArray(it.into_iter().map(T::into).collect())
     }
 
     pub fn longarray<T: Into<i64>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
-        Tag::LongArray(
-            it.into_iter()
-                .map(T::into)
-                .collect()
-        )
+        Tag::LongArray(it.into_iter().map(T::into).collect())
     }
 
     pub fn shortarray<T: Into<i16>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
-        Tag::ShortArray(
-            it.into_iter()
-                .map(T::into)
-                .collect()
-        )
+        Tag::ShortArray(it.into_iter().map(T::into).collect())
     }
-    
+
     pub fn string<S: Into<String>>(value: S) -> Tag {
         Tag::String(value.into())
     }
 
     pub fn list<T>(array: T) -> Tag
-    where T: Into<ListTag> {
+    where
+        T: Into<ListTag>,
+    {
         Tag::List(array.into())
     }
 
-    pub fn compound<S,T,IT>(items: IT) -> Tag 
-    where 
+    pub fn compound<S, T, IT>(items: IT) -> Tag
+    where
         S: Into<String>,
         T: Into<Tag>,
-        IT: IntoIterator<Item = (S, T)> {
+        IT: IntoIterator<Item = (S, T)>,
+    {
         let mut result = Map::new();
         items.into_iter().for_each(|(name, tag)| {
             result.insert(name.into(), tag.into());
         });
         Tag::Compound(result)
     }
-
 }
 
 impl From<&str> for Tag {
@@ -293,7 +272,8 @@ pub struct NamedTag {
 impl NamedTag {
     pub fn new<T>(tag: T) -> Self
     where
-        T: Into<Tag> {
+        T: Into<Tag>,
+    {
         Self {
             name: String::default(),
             tag: tag.into(),
@@ -323,13 +303,13 @@ impl NamedTag {
     pub fn clear_name(&mut self) {
         self.name = String::default();
     }
-
 }
 
-impl<S,T> From<(S, T)> for NamedTag
+impl<S, T> From<(S, T)> for NamedTag
 where
     S: Into<String>,
-    T: Into<Tag> {
+    T: Into<Tag>,
+{
     fn from(value: (S, T)) -> Self {
         Self {
             name: value.0.into(),
