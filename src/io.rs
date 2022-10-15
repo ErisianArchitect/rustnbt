@@ -451,36 +451,3 @@ macro_rules! tag_io {
 }
 
 tag_info_table!(tag_io);
-
-#[cfg(test)]
-mod tests {
-    #![allow(unused)]
-
-    use crate::tag::*;
-    use super::*;
-
-    macro_rules! discard {
-        ($($_:tt)*) => {
-            
-        };
-    }
-
-    
-
-    #[test]
-    fn size_test() {
-            //let testtag = big_compound(test_tag(), 100);
-            //let testtag = NamedTag::new(testtag);
-        // println!("Size: {}", testtag.size_in_bytes());
-        use std::fs::*;
-        // let mut file = File::create("./ignore/big.nbt").expect("Failed to create file.");
-        // let mut writer = BufWriter::with_capacity(mebibytes(64), file);
-        // let write_size = testtag.nbt_write(writer.get_mut()).expect("Failed to write tag.");
-        // println!("Write size: {}", write_size);
-        let mut file = File::open("./ignore/big.nbt").expect("Failed to open file.");
-        let mut reader = BufReader::with_capacity(mebibytes(64), file);
-        let readtag = NamedTag::nbt_read(reader.get_mut()).expect("Failure.");
-        println!("Tag Type: {}", readtag.tag().title());
-        println!("Data Size: {}", readtag.tag().size_in_bytes());
-    }
-}
