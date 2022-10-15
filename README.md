@@ -5,7 +5,7 @@ This implements Minecraft's NBT format, then adds some tags to the format.
 
 # Coverage
 ```rs
-//id  Name                Type
+  ID  Name                Type
   01  Byte                i8
   02  Short               i16
   03  Int                 i32
