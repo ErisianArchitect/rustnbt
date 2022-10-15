@@ -3,9 +3,9 @@ NBT format library.
 
 This implements Minecraft's NBT format, then adds some tags to the format.
 
-#Coverage
+# Coverage
 ```rs
-//id  Name                Type                [Implementations...]
+//id  Name                Type                [Implementations (This is for codegen)...]
   01  Byte                i8                  [Include<Primitive>, Include<Byte>, Exclude<Array>, Exclude<Special>]
   02  Short               i16                 [Include<Primitive>, Exclude<Byte>, Exclude<Array>, Exclude<Special>]
   03  Int                 i32                 [Include<Primitive>, Exclude<Byte>, Exclude<Array>, Exclude<Special>]
