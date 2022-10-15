@@ -14,6 +14,22 @@ use crate::family::*;
 
 pub type Map = IndexMap<String, Tag>;
 
+#[allow(non_camel_case_types)]
+pub union byte {
+    pub unsigned: u8,
+    pub signed: i8,
+}
+
+pub trait ByteType {
+    type Signed;
+    type Unsigned;
+}
+
+impl ByteType for byte {
+    type Signed = i8;
+    type Unsigned = u8;
+}
+
 pub trait NbtType {
     // I don't know what this trait should have.
     const ID: TagID;

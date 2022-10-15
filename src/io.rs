@@ -94,13 +94,13 @@ pub trait NbtSize {
     fn size_in_bytes(&self) -> usize;
 }
 
-impl<T: Include<Primitive> + Sized> NbtSize for T {
+impl<T: Primitive + Sized> NbtSize for T {
     fn size_in_bytes(&self) -> usize {
         std::mem::size_of::<T>()
     }
 }
 
-impl<T: Include<Primitive> + Sized> NbtSize for Vec<T> {
+impl<T: Primitive + Sized> NbtSize for Vec<T> {
     fn size_in_bytes(&self) -> usize {
         std::mem::size_of::<T>() * self.len() + 4usize
     }
@@ -159,7 +159,7 @@ where
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError>;
 }
 
-impl<T: NbtRead + Exclude<Byte>> NbtRead for Vec<T> {
+impl<T: NbtRead + Not<byte>> NbtRead for Vec<T> {
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
         let length = u32::nbt_read(reader)?;
         read_array(reader, length as usize)
@@ -222,7 +222,7 @@ impl NbtWrite for String {
     }
 }
 
-impl<T: NbtWrite + Exclude<Byte>> NbtWrite for Vec<T> {
+impl<T: NbtWrite + Not<byte>> NbtWrite for Vec<T> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
         write_array(writer, self.as_slice())
@@ -465,87 +465,12 @@ mod tests {
         };
     }
 
-    /// A simple test tag that has some basic values.
-    fn test_tag() -> Tag {
-        let byte = Tag::Byte(43);
-        let short = Tag::Short(1023);
-        let int = Tag::Int(100000);
-        let long = Tag::Long(i64::MAX);
-        let float = Tag::Float(3.14);
-        let double = Tag::Double(420.69);
-        let bytearray = Tag::ByteArray((-128i8..=127).collect());
-        let string = Tag::string("Hello, world!");
-        let stringlist = Tag::List(
-            ListTag::String(vec![
-                String::from("One"),
-                String::from("Two"),
-                String::from("Three"),
-            ])
-        );
-        let mut compound = Map::new();
-        (0..1000).for_each(|i| {
-            let name = format!("Item{i}");
-            let tag = match i {
-                69 => {
-                    Tag::compound([
-                        ("It's morbin time!", Tag::string("https://www.youtube.com/watch?v=DhtEKCqmvU4"))  
-                    ])
-                }
-                420 => {
-                    Tag::compound([
-                        ("Bool Bideo", Tag::string("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))                        
-                    ])
-                }
-                666 => {
-                    Tag::compound([
-                        ("Happy Halloween!", Tag::string("https://www.youtube.com/watch?v=Qay_B3WHW-g"))                        
-                    ])
-                }
-                _ => {
-                    Tag::String(name.to_owned())
-                }
-            };
-            compound.insert(name.to_owned(), tag);
-        });
-        let compound = Tag::Compound(compound);
-        let intarray = Tag::IntArray(vec![1000000, 1009300, 1000020]);
-        let longarray = Tag::LongArray((0i64..10i64).map(|v| v.wrapping_mul(1000)).collect());
-        let mut tagroot = Map::new();
-        macro_rules! root {
-            ($($name:ident)+) => {
-                $(tagroot.insert(String::from(stringify!($name)), $name);)+
-            };
-        }
-        root!{
-            byte
-            short
-            int
-            long
-            float
-            double
-            bytearray
-            string
-            stringlist
-            compound
-            intarray
-            longarray
-        }
-        Tag::Compound(tagroot)
-    }
-
-    fn big_compound(tag: Tag, count: usize) -> Tag {
-        let mut compound = Map::new();
-        (0..count).for_each(|i| {
-            let name = format!("Item{i}");
-            compound.insert(name.to_owned(), tag.clone());
-        });
-        Tag::Compound(compound)
-    }
+    
 
     #[test]
     fn size_test() {
-        //let testtag = big_compound(test_tag(), 100);
-        //let testtag = NamedTag::new(testtag);
+            //let testtag = big_compound(test_tag(), 100);
+            //let testtag = NamedTag::new(testtag);
         // println!("Size: {}", testtag.size_in_bytes());
         use std::fs::*;
         // let mut file = File::create("./ignore/big.nbt").expect("Failed to create file.");
