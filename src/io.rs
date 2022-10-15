@@ -195,6 +195,12 @@ impl NbtWrite for TagID {
 
 impl NbtWrite for String {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
+        self.as_str().nbt_write(writer)
+    }
+}
+
+impl NbtWrite for &str {
+    fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         let length: u16 = self.len() as u16;
         length.nbt_write(writer)?;
         Ok(writer.write(self.as_bytes())? + 2)
@@ -364,7 +370,7 @@ macro_rules! tag_io {
         }
 
         impl Tag {
-            fn nbt_write_named<W: Write, S: Into<String>>(&self, writer: &mut W, name: S) -> Result<usize, NbtError> {
+            fn nbt_write_named<'a, W: Write>(&self, writer: &mut W, name: &str) -> Result<usize, NbtError> {
                 match self {
                     $(
                         Tag::$title(tag) => {
@@ -374,7 +380,7 @@ macro_rules! tag_io {
                             //     tag.nbt_write(writer)?
                             // )
                             let id_size = TagID::$title.nbt_write(writer)?;
-                            let key_size = name.into().nbt_write(writer)?;
+                            let key_size = name.nbt_write(writer)?;
                             let tag_size = tag.nbt_write(writer)?;
                             Ok(id_size + key_size + tag_size)
                         }
@@ -397,6 +403,36 @@ macro_rules! tag_io {
                     _ => unreachable!("Impossible state."),
                 };
                 Ok((name, tag))
+            }
+        }
+
+        impl NbtWrite for NamedTag {
+            fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
+                Ok(self.tag.nbt_write_named(writer, &self.name)?)
+            }
+        }
+
+        impl NbtRead for NamedTag {
+            fn nbt_read<R: Read>(reader: &mut R) -> Result<NamedTag, NbtError> {
+                let id = TagID::nbt_read(reader)?;
+                if matches!(id, TagID::End | TagID::Unsupported) {
+                    return Err(NbtError::Unsupported);
+                }
+                let name = String::nbt_read(reader)?;
+                let tag = match id {
+                    $(
+                        TagID::$title => {
+                            Tag::$title(<$type_>::nbt_read(reader)?)
+                        }
+                    )+
+                    _ => unreachable!("Impossible state."),
+                };
+                Ok(
+                    NamedTag {
+                        name,
+                        tag,
+                    }
+                )
             }
         }
 
