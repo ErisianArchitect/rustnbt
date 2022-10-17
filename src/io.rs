@@ -135,7 +135,7 @@ where
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError>;
 }
 
-impl<T: NbtRead + Not<byte>> NbtRead for Vec<T> {
+impl<T: NbtRead + Not<Byte>> NbtRead for Vec<T> {
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
         let length = u32::nbt_read(reader)?;
         read_array(reader, length as usize)
@@ -198,7 +198,7 @@ impl NbtWrite for String {
     }
 }
 
-impl<T: NbtWrite + Not<byte>> NbtWrite for Vec<T> {
+impl<T: NbtWrite + Not<Byte>> NbtWrite for Vec<T> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
         write_array(writer, self.as_slice()).map(|size| size + 4)
@@ -393,25 +393,7 @@ macro_rules! tag_io {
 
         impl NbtRead for NamedTag {
             fn nbt_read<R: Read>(reader: &mut R) -> Result<NamedTag, NbtError> {
-                let id = TagID::nbt_read(reader)?;
-                if matches!(id, TagID::End | TagID::Unsupported) {
-                    return Err(NbtError::Unsupported);
-                }
-                let name = String::nbt_read(reader)?;
-                let tag = match id {
-                    $(
-                        TagID::$title => {
-                            Tag::$title(NbtRead::nbt_read(reader)?)
-                        }
-                    )+
-                    _ => unreachable!("Impossible state."),
-                };
-                Ok(
-                    NamedTag {
-                        name,
-                        tag,
-                    }
-                )
+                Ok(Tag::nbt_read_named(reader)?.into())
             }
         }
 

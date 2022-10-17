@@ -11,23 +11,6 @@ use std::marker::PhantomData;
 
 pub type Map = IndexMap<String, Tag>;
 
-// TODO: I was planning on replacing ByteArray and ListTag::Byte with Vec<byte>.
-#[allow(non_camel_case_types)]
-pub union byte {
-    pub unsigned: u8,
-    pub signed: i8,
-}
-
-pub trait ByteType {
-    type Signed;
-    type Unsigned;
-}
-
-impl ByteType for byte {
-    type Signed = i8;
-    type Unsigned = u8;
-}
-
 pub trait NbtType {
     // I don't know what this trait should have.
     const ID: TagID;

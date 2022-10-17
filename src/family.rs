@@ -1,40 +1,11 @@
-use crate::tag::byte;
-pub trait NbtFamily {}
-pub trait Flag {
-    type Not;
-}
+pub trait Not<F> {}
 
-macro_rules! make_flags {
-    ($($name:ident)+) => {
-        $(
-            pub struct $name;
-            impl Flag for $name {}
-        )+
-    };
-}
+pub struct Byte(u8);
 
-pub trait Include<T: Flag> {}
-pub trait Exclude<T: Flag> {}
-
-pub trait Not<F: Flag> {}
-
-#[allow(non_camel_case_types)]
-pub struct nonbyte;
-
-impl Flag for nonbyte {
-    type Not = byte;
-}
-
-impl Flag for byte {
-    type Not = nonbyte;
-}
+impl<N: NonByte> Not<Byte> for N {}
 
 pub trait NonByte {}
-
-impl<N: NonByte> Not<byte> for N {}
-
-pub trait NonBytePrimitive {}
 pub trait Primitive {}
-
-impl<T: NonBytePrimitive> Primitive for T {}
+pub trait NonBytePrimitive {}
 impl<T: NonBytePrimitive> NonByte for T {}
+impl<T: NonBytePrimitive> Primitive for T {}
