@@ -35,30 +35,13 @@ const fn gibibytes(size: usize) -> usize {
     size << 30
 }
 
-fn vec_u8_to_vec_i8(v: Vec<u8>) -> Vec<i8> {
-    let mut v = std::mem::ManuallyDrop::new(v);
-
-    let p = v.as_mut_ptr();
-    let len = v.len();
-    let cap = v.capacity();
-
-    unsafe { Vec::from_raw_parts(p as *mut i8, len, cap) }
-}
-
-fn vec_i8_to_vec_u8(v: Vec<i8>) -> Vec<u8> {
-    let mut v = std::mem::ManuallyDrop::new(v);
-
-    let p = v.as_mut_ptr();
-    let len = v.len();
-    let cap = v.capacity();
-
-    unsafe { Vec::from_raw_parts(p as *mut u8, len, cap) }
+fn safe_vec_u8_to_vec_i8(v: Vec<u8>) -> Vec<i8> {
+    v.into_iter().map(|x| x as i8).collect()
 }
 
 fn read_bytes<R: Read>(reader: &mut R, length: usize) -> Result<Vec<u8>, NbtError> {
-    let mut buf: Vec<u8> = Vec::new();
-    // let mut buf: Vec<u8> = Vec::with_capacity(length);
-    reader.take(length as u64).read_to_end(&mut buf)?;
+    let mut buf: Vec<u8> = vec![0u8; length];
+    reader.read_exact(&mut buf)?;
     Ok(buf)
 }
 
@@ -163,7 +146,7 @@ impl NbtRead for Vec<i8> {
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
         let length = u32::nbt_read(reader)?;
         let bytes = read_bytes(reader, length as usize)?;
-        Ok(vec_u8_to_vec_i8(bytes))
+        Ok(safe_vec_u8_to_vec_i8(bytes))
     }
 }
 
