@@ -1,6 +1,6 @@
 [package]
 name = "rustnbt"
-author = "Derek F. <https://github.com/NullSurplus/>"
+authors = ["Derek F. <https://github.com/NullSurplus/>"]
 version = "0.1.0"
 edition = "2021"
 
