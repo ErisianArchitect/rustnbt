@@ -158,10 +158,12 @@ impl NbtSize for Vec<ListTag> {
     }
 }
 
+/// A trait for reading values from readers.
 pub trait NbtRead
 where
     Self: Sized,
 {
+    /// Attempt to read a value from a reader.
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError>;
 }
 
@@ -207,7 +209,9 @@ impl NbtRead for TagID {
     }
 }
 
+/// A trait for writing values to writers.
 pub trait NbtWrite {
+    /// Write a value to a writer.
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError>;
 }
 
@@ -228,6 +232,8 @@ impl NbtWrite for String {
     }
 }
 
+// This is a special implementation for writing Vectors that
+// are not u8 or i8.
 impl<T: NbtWrite + Not<Byte>> NbtWrite for Vec<T> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
@@ -235,9 +241,11 @@ impl<T: NbtWrite + Not<Byte>> NbtWrite for Vec<T> {
     }
 }
 
+// This is a special implementation
 impl NbtWrite for Vec<i8> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
+        // self: Vec<i8>
         let u8slice: &[u8] = unsafe {
             std::slice::from_raw_parts(self.as_slice().as_ptr() as *const u8, self.len())
         };
