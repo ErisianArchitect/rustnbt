@@ -20,6 +20,7 @@
 /// tag_info_table!(read_table);
 /// ```
 #[macro_export]
+// [IMPORTANT!] If this table is updated, search for `[table update]` within the project to find places that the code might need to be updated.
 macro_rules! tag_info_table {
     ($macro:ident) => {
         $macro! {
