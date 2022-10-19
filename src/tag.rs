@@ -7,12 +7,17 @@ use crate::Map;
 use crate::ThisError;
 
 use num_traits::ToPrimitive;
+use num_traits::Zero;
+use num_traits::identities::*;
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::io::IntoInnerError;
 
 /// Marks that a type is directly represented as an NBT tag type.
 pub trait NbtType {
+    /// The Minecraft NBT type ID.
     const ID: TagID;
+    /// Converts to [`Tag`].
     fn nbt(self) -> Tag;
 }
 
@@ -21,6 +26,7 @@ pub trait NbtType {
 /// NBT representation, but can be encoded as an NBT tree.
 pub trait EncodeNbt {
     /// Encode as NBT.
+    /// This typically results in a [`Tag::Compound`], but may result in other [`Tag`] variants.
     fn encode_nbt(&self) -> Tag;
 }
 
@@ -36,45 +42,12 @@ pub trait DecodeNbt: Sized {
 macro_rules! tag_data {
     ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
 
-        $(
-            impl NbtType for $type_ {
-                const ID: TagID = TagID::$title;
-                fn nbt(self) -> Tag {
-                    self.into()
-                }
-            }
-
-            impl EncodeNbt for $type_ {
-                fn encode_nbt(&self) -> Tag {
-                    self.clone().into()
-                }
-            }
-
-            impl DecodeNbt for $type_ {
-                type Error = String;
-                fn decode_nbt(tag: Tag) -> Result<Self, String> {
-                    if let Tag::$title(tag) = tag {
-                        return Ok(tag)
-                    }
-                    Err(format!("Failed to convert from NBT to {}. Found: {}", stringify!($type_), tag.id()))
-                }
-            }
-
-            impl TryFrom<Tag> for $type_ {
-                type Error = ();
-                fn try_from(value: Tag) -> Result<$type_, ()> {
-                    if let Tag::$title(inner) = value {
-                        return Ok(inner);
-                    }
-                    Err(())
-                }
-            }
-
-        )+
-
-        $($($(
-            impl $impl for $type_ {}
-        )*)?)+
+        /// The NBT Tag enum.
+        /// To see what types are supported, take a look at `table.rs`.
+        #[derive(Clone, Debug)]
+        pub enum Tag {
+            $($title($type_),)+
+        }
 
         /// The TagID represents the NBT type ID of a Tag.
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -84,6 +57,14 @@ macro_rules! tag_data {
             $(
                 $title = $id,
             )+
+        }
+
+        /// Enum type for Tag::List.
+        #[derive(Clone, Debug)]
+        pub enum ListTag {
+            /// Represents a ListTag without any elements.
+            Empty,
+            $($title(Vec<$type_>),)+
         }
 
         impl TagID {
@@ -110,6 +91,33 @@ macro_rules! tag_data {
             }
         }
 
+        impl Tag {
+            /// Returns the NBT type ID.
+            pub fn id(&self) -> TagID {
+                match self {
+                    $(Tag::$title(_) => TagID::$title,)+
+                }
+            }
+        }
+
+        impl ListTag {
+            /// Returns the Tag type ID.
+            pub fn id(&self) -> TagID {
+                match self {
+                    ListTag::Empty => TagID::End,
+                    $(ListTag::$title(_) => TagID::$title,)+
+                }
+            }
+
+            /// Returns the number of elements in the list.
+            pub fn len(&self) -> usize {
+                match self {
+                    $(ListTag::$title(list) => list.len(),)+
+                    ListTag::Empty => 0,
+                }
+            }
+        }
+
         impl<T: ToPrimitive> From<T> for TagID {
             fn from(value: T) -> Self {
                 match value.to_usize() {
@@ -122,87 +130,75 @@ macro_rules! tag_data {
             }
         }
 
-        /// The NBT Tag enum.
-        /// To see what types are supported, take a look at `table.rs`.
-        #[derive(Clone, Debug)]
-        pub enum Tag {
-            $($title($type_),)+
-        }
-
-        impl Tag {
-            /// Returns the NBT type ID.
-            pub fn id(&self) -> TagID {
-                match self {
-                    $(Tag::$title(_) => TagID::$title,)+
+        $(
+            impl NbtType for $type_ {
+                const ID: TagID = TagID::$title;
+                fn nbt(self) -> Tag {
+                    self.into()
                 }
             }
-        }
 
-        impl Display for Tag {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_fmt(format_args!("{:#?}", self))
+            impl EncodeNbt for $type_ {
+                fn encode_nbt(&self) -> Tag {
+                    self.clone().into()
+                }
             }
-        }
 
-        $(
+            impl DecodeNbt for $type_ {
+                type Error = String;
+                fn decode_nbt(tag: Tag) -> Result<Self, String> {
+                    if let Tag::$title(tag) = tag {
+                        return Ok(tag)
+                    }
+                    Err(format!("Failed to convert from NBT to {}. Found: {}", stringify!($type_), tag.id()))
+                }
+            }
+
+            $($(
+                impl $impl for $type_ {}
+            )*)?
+
             impl From<$type_> for Tag {
                 fn from(value: $type_) -> Self {
                     Tag::$title(value)
                 }
             }
-        )+
 
-        /// Enum type for Tag::List.
-        #[derive(Clone, Debug)]
-        pub enum ListTag {
-            /// Represents a ListTag without any elements.
-            Empty,
-            $($title(Vec<$type_>),)+
-        }
-
-        impl Display for ListTag {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_fmt(format_args!("{:#?}", self))
-            }
-        }
-
-        $(
+            /// From a vector to a ListTag.
             impl From<Vec<$type_>> for ListTag {
                 fn from(value: Vec<$type_>) -> Self {
                     ListTag::$title(value)
                 }
             }
 
+            /// From a slice to a ListTag.
             impl From<&[$type_]> for ListTag {
                 fn from(value: &[$type_]) -> Self {
                     ListTag::$title(value.to_vec())
                 }
             }
-        )+
 
-        impl ListTag {
-            pub fn id(&self) -> TagID {
-                match self {
-                    ListTag::Empty => TagID::End,
-                    $(ListTag::$title(_) => TagID::$title,)+
+            impl TryFrom<Tag> for $type_ {
+                type Error = ();
+                fn try_from(value: Tag) -> Result<$type_, ()> {
+                    if let Tag::$title(inner) = value {
+                        return Ok(inner);
+                    }
+                    Err(())
                 }
             }
-            pub fn len(&self) -> usize {
-                match self {
-                    $(ListTag::$title(list) => list.len(),)+
-                    ListTag::Empty => 0,
-                }
-            }
-        }
+
+        )+
     };
 }
 
 tag_info_table!(tag_data);
 
-impl Display for TagID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{:#?}", self))
-    }
+/// Represents a Named NBT Tag, often used as a Tag Root for an NBT file.
+#[derive(Clone, Debug)]
+pub struct NamedTag {
+    pub(crate) name: String,
+    pub(crate) tag: Tag,
 }
 
 impl TagID {
@@ -275,19 +271,6 @@ impl Tag {
     }
 }
 
-impl From<&str> for Tag {
-    fn from(value: &str) -> Self {
-        Tag::String(String::from(value))
-    }
-}
-
-/// Represents a Named NBT Tag, often used as a Tag Root for an NBT file.
-#[derive(Clone, Debug)]
-pub struct NamedTag {
-    pub(crate) name: String,
-    pub(crate) tag: Tag,
-}
-
 impl NamedTag {
     /// Creates a new NamedTag that has a blank name (`String::default()`)
     pub fn new<T>(tag: T) -> Self
@@ -311,24 +294,43 @@ impl NamedTag {
             }
     }
 
+    /// Get the name of the NamedTag.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Borrow the NamedTag's tag value.
     pub fn tag(&self) -> &Tag {
         &self.tag
     }
 
+    /// Mutably borrow the NamedTag's tag value.
     pub fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
     }
 
+    /// Set the NamedTag's tag value.
     pub fn set_tag<T: Into<Tag>>(&mut self, tag: T) {
         self.tag = tag.into();
     }
 
+    /// Set the NamedTag's name.
     pub fn set_name<T: Into<String>>(&mut self, name: T) {
         self.name = name.into();
+    }
+}
+
+impl From<bool> for Tag {
+    /// Create a Tag::Byte from a boolean value.
+    fn from(on: bool) -> Self {
+        Tag::Byte(if on { 1 } else { 0 })
+    }
+}
+
+impl From<&str> for Tag {
+    /// Creates a [Tag::String].
+    fn from(value: &str) -> Self {
+        Tag::String(String::from(value))
     }
 }
 
@@ -337,6 +339,7 @@ where
     S: Into<String>,
     T: Into<Tag>,
 {
+    /// Convert to a NamedTag from a Tuple.
     fn from(value: (S, T)) -> Self {
         Self {
             name: value.0.into(),
@@ -345,8 +348,56 @@ where
     }
 }
 
-impl<S: From<String>> From<NamedTag> for (S, Tag) {
-    fn from(value: NamedTag) -> Self {
-        (S::from(value.name), value.tag)
+impl TryFrom<Tag> for bool {
+    type Error = ();
+
+    /// Tries to create a bool from a Tag value.
+    /// The Tag type must be a numeric type, such as `Tag::Byte`, `Tag::Int`, `Tag::Float`, `Tag::U128`, etc.
+    /// Returns false for zero, and true for non-zero.
+    fn try_from(value: Tag) -> Result<Self, Self::Error> {
+        Ok(match value {
+            Tag::Byte(inner) => !inner.is_zero(),
+            Tag::Short(inner) => !inner.is_zero(),
+            Tag::Int(inner) => !inner.is_zero(),
+            Tag::Long(inner) => !inner.is_zero(),
+            Tag::Float(inner) => !inner.is_zero(),
+            Tag::UByte(inner) => !inner.is_zero(),
+            Tag::UShort(inner) => !inner.is_zero(),
+            Tag::UInt(inner) => !inner.is_zero(),
+            Tag::ULong(inner) => !inner.is_zero(),
+            Tag::I128(inner) => !inner.is_zero(),
+            Tag::U128(inner) => !inner.is_zero(),
+            // [table update]
+            _ => return Err(()),
+        })
+    }
+}
+
+impl<S: From<String>, T: TryFrom<Tag>> TryFrom<NamedTag> for (S, T) {
+    type Error = ();
+    /// Trys to create a Tuple from a NamedTag. This may be useful in iterators.
+    fn try_from(value: NamedTag) -> Result<Self, Self::Error> {
+        if let Ok(tag) = T::try_from(value.tag) {
+            return Ok((value.name.into(), tag));
+        }
+        Err(())
+    }
+}
+
+impl Display for TagID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{:#?}", self))
+    }
+}
+
+impl Display for Tag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{:#?}", self))
+    }
+}
+
+impl Display for ListTag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{:#?}", self))
     }
 }
