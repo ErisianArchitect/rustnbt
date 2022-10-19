@@ -22,7 +22,7 @@ pub trait NbtType {
 }
 
 /// A trait for encoding an object as NBT.
-/// This trait is intended for objects that don't have a direct
+/// This trait is intended for types that don't have a direct
 /// NBT representation, but can be encoded as an NBT tree.
 pub trait EncodeNbt {
     /// Encode as NBT.
@@ -31,9 +31,9 @@ pub trait EncodeNbt {
 }
 
 /// A trait for decoding NBT into an object.
-/// This trait is intended for object that don't have a direct
+/// This trait is intended for types that don't have a direct
 /// NBT representation, but can be decoded from NBT data.
-pub trait DecodeNbt: Sized {
+pub trait DecodeNbt: Sized + EncodeNbt {
     type Error;
     /// Tries to decode from NBT.
     fn decode_nbt(nbt: Tag) -> Result<Self, Self::Error>;
@@ -334,10 +334,10 @@ impl From<&str> for Tag {
     }
 }
 
-impl<S, T> From<(S, T)> for NamedTag
+impl<S, T> From<(S,T)> for NamedTag
 where
     S: Into<String>,
-    T: Into<Tag>,
+    T: Into<Tag>
 {
     /// Convert to a NamedTag from a Tuple.
     fn from(value: (S, T)) -> Self {
@@ -373,7 +373,10 @@ impl TryFrom<Tag> for bool {
     }
 }
 
-impl<S: From<String>, T: TryFrom<Tag>> TryFrom<NamedTag> for (S, T) {
+impl<S, T> TryFrom<NamedTag> for (S, T)
+where
+    S: From<String>,
+    T: TryFrom<Tag> {
     type Error = ();
     /// Trys to create a Tuple from a NamedTag. This may be useful in iterators.
     fn try_from(value: NamedTag) -> Result<Self, Self::Error> {
