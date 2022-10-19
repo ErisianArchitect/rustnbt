@@ -33,7 +33,7 @@ use std::{
     ops::Mul,
 };
 
-
+/// This is the Error type returned from NbtRead and NbtWrite operations that fail.
 #[derive(ThisError, Debug)]
 pub enum NbtError {
     #[error("io error.")]
@@ -59,20 +59,24 @@ const fn gibibytes(size: usize) -> usize {
     size << 30
 }
 
+/// This function converts a Vec<u8> into a Vec<i8> safely using compiler magic.
 fn safe_vec_u8_to_vec_i8(v: Vec<u8>) -> Vec<i8> {
     v.into_iter().map(|x| x as i8).collect()
 }
 
+/// Reads an exact number of bytes from a reader, returning them as a [Vec].
 fn read_bytes<R: Read>(reader: &mut R, length: usize) -> Result<Vec<u8>, NbtError> {
     let mut buf: Vec<u8> = vec![0u8; length];
     reader.read_exact(&mut buf)?;
     Ok(buf)
 }
 
+/// Writes a byte slice to a writer, returning the number of bytes that were written.
 fn write_bytes<W: Write>(writer: &mut W, data: &[u8]) -> Result<usize, NbtError> {
     Ok(writer.write_all(data).map(|_| data.len())?)
 }
 
+/// Reads a certain number of elements from a reader.
 fn read_array<R, T>(reader: &mut R, length: usize) -> Result<Vec<T>, NbtError>
 where
     R: Read,
@@ -81,6 +85,7 @@ where
     (0..length).map(|_| T::nbt_read(reader)).collect()
 }
 
+/// Writes elements to a writer, returning the total number of bytes written.
 fn write_array<W, T>(writer: &mut W, data: &[T]) -> Result<usize, NbtError>
 where
     W: Write,
@@ -91,24 +96,25 @@ where
 
 /// Trait that gives the serialization size of various values.
 pub trait NbtSize {
-    fn size_in_bytes(&self) -> usize;
+    /// Returns the serialization size of this data.
+    fn nbt_size(&self) -> usize;
 }
 
 impl<T: Primitive + Sized> NbtSize for T {
-    fn size_in_bytes(&self) -> usize {
+    fn nbt_size(&self) -> usize {
         std::mem::size_of::<T>()
     }
 }
 
 impl<T: Primitive + Sized> NbtSize for Vec<T> {
-    fn size_in_bytes(&self) -> usize {
+    fn nbt_size(&self) -> usize {
         std::mem::size_of::<T>() * self.len() + 4usize
     }
 }
 
 impl NbtSize for String {
-    fn size_in_bytes(&self) -> usize {
-        2usize + self.len()
+    fn nbt_size(&self) -> usize {
+        /*2 bytes for the length*/ 2usize + self.len()
     }
 }
 
@@ -117,36 +123,36 @@ impl NbtSize for Vec<String> {
     /// It will add 4 to the sum size of the elements, marking
     /// the number of bytes reserved for the length, which is
     /// a requirement to write this to memory.
-    fn size_in_bytes(&self) -> usize {
+    fn nbt_size(&self) -> usize {
         self.iter()
-            .map(|value| value.size_in_bytes())
+            .map(|value| value.nbt_size())
             .sum::<usize>()
             + 4usize
     }
 }
 
 impl NbtSize for Map {
-    fn size_in_bytes(&self) -> usize {
+    fn nbt_size(&self) -> usize {
         self.iter()
-            .map(|(name, tag)| name.size_in_bytes() + tag.size_in_bytes() + 1)
+            .map(|(name, tag)| name.nbt_size() + tag.nbt_size() + 1)
             .sum::<usize>()
             + 1
     }
 }
 
 impl NbtSize for Vec<Map> {
-    fn size_in_bytes(&self) -> usize {
+    fn nbt_size(&self) -> usize {
         self.iter()
-            .map(|value| value.size_in_bytes())
+            .map(|value| value.nbt_size())
             .sum::<usize>()
             + 4
     }
 }
 
 impl NbtSize for Vec<ListTag> {
-    fn size_in_bytes(&self) -> usize {
+    fn nbt_size(&self) -> usize {
         self.iter()
-            .map(|value| value.size_in_bytes())
+            .map(|value| value.nbt_size())
             .sum::<usize>()
             + 4
     }
@@ -293,17 +299,17 @@ primitive_table![
 macro_rules! tag_io {
     ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
         impl NbtSize for Tag {
-            fn size_in_bytes(&self) -> usize {
+            fn nbt_size(&self) -> usize {
                 match self {
-                    $(Tag::$title(tag) => tag.size_in_bytes(),)+
+                    $(Tag::$title(tag) => tag.nbt_size(),)+
                 }
             }
         }
 
         impl NbtSize for ListTag {
-            fn size_in_bytes(&self) -> usize {
+            fn nbt_size(&self) -> usize {
                 match self {
-                    $(ListTag::$title(list) => list.iter().map(|item| item.size_in_bytes()).sum::<usize>() + 5,)+
+                    $(ListTag::$title(list) => list.iter().map(|item| item.nbt_size()).sum::<usize>() + 5,)+
                     ListTag::Empty => 5,
                 }
             }
