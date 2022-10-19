@@ -4,6 +4,8 @@ pub mod io;
 pub(crate) mod table;
 pub mod tag;
 
+use thiserror::Error as ThisError;
+
 #[cfg(feature = "preserve_order")]
 use indexmap::IndexMap;
 #[cfg(feature = "preserve_order")]
