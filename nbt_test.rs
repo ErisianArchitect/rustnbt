@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use rustnbt::{io::*, tag::*};
+use rustnbt::{io::*, tag::*,Map};
 
 use std::{
     fs::File,
@@ -63,10 +63,55 @@ const fn gibibytes(size: usize) -> usize {
     size << 30
 }
 
-fn main() {
-    use std::fs::File;
+fn test_tag() -> Tag {
+    let byte = Tag::Byte(i8::MAX);
+    let short = Tag::Short(i16::MAX);
+    let int = Tag::Int(69420);
+    let long = Tag::Long(i64::MAX);
+    let float = Tag::Float(3.14_f32);
+    let double = Tag::Double(3.14159265358979_f64);
+    let bytearray = Tag::ByteArray(vec![1,2,3,4]);
+    let list = Tag::List(ListTag::from(vec![1,2,3,4]));
+    let intarray = Tag::IntArray(vec![1,1,2,3,5,8,13,21,34,55,89,144]);
+    let longarray = Tag::LongArray(vec![1,3,3,7, 1337, 13,37, 1,3,37,1,337, 133,7, 1,33,7,13,3,7]);
+    let mut compound = Map::from([
+        ("Byte".to_owned(), byte.clone()),
+        ("Short".to_owned(), short.clone()),
+        ("Int".to_owned(), int.clone()),
+        ("Long".to_owned(), long.clone()),
+        ("Float".to_owned(), float.clone()),
+        ("Double".to_owned(), double.clone()),
+        ("ByteArray".to_owned(), bytearray.clone()),
+        ("List".to_owned(), list.clone()),
+        ("IntArray".to_owned(), intarray.clone()),
+        ("LongArray".to_owned(), longarray.clone()),
+    ]);
+    let mapclone = compound.clone();
+    compound.insert("Compound".to_owned(), Tag::Compound(mapclone));
+    Tag::Compound(compound)
+}
 
-    println!("1KiB: {}", kibibytes(1024 * 1024));
-    println!("1MiB: {}", mebibytes(1024));
-    println!("1GiB: {}", gibibytes(1));
+fn main() -> Result<(),std::io::Error> {
+    use std::fs::File;
+    use std::io::*;
+
+    let mut file = File::create("output.nbt")?;
+    let mut writer = BufWriter::new(file);
+    let tag = test_tag();
+    println!("Tag is type {} and is {} bytes in size.", tag.id(), tag.nbt_size());
+    if let Ok(written) = write_named_tag(&mut writer, &tag, "Test NBT Root.") {
+        println!("Wrote {} bytes to file.", written);
+    } else {
+        println!("Failed to write to file.")
+    }
+    drop(writer);
+    let mut file = File::open("output.nbt")?;
+    let mut reader = BufReader::new(file);
+    if let Ok((name, tag)) = read_named_tag(&mut reader) {
+        println!("Root Name: {}", name);
+        println!("Root Value: {}", tag);
+    } else {
+        println!("Failed for some reason.")
+    }
+    Ok(())
 }
