@@ -39,6 +39,8 @@ pub trait DecodeNbt: Sized + EncodeNbt {
     fn decode_nbt(nbt: Tag) -> Result<Self, Self::Error>;
 }
 
+/// This is where a majority of the generation for the code in this module happens.
+/// It utilizes the table in `\src\table.rs`.
 macro_rules! tag_data {
     ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
 
