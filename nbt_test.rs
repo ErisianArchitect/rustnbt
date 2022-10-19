@@ -63,6 +63,18 @@ const fn gibibytes(size: usize) -> usize {
     size << 30
 }
 
+macro_rules! compounder {
+    ($($name:ident : $tag:expr),+) => {
+        {
+            Tag::Compound(Map::from([
+                $(
+                    (String::from(stringify!($name)), Tag::from($tag)),
+                )+
+            ]))
+        }
+    };
+}
+
 fn test_tag() -> Tag {
     let byte = Tag::Byte(i8::MAX);
     let short = Tag::Short(i16::MAX);
@@ -71,10 +83,11 @@ fn test_tag() -> Tag {
     let float = Tag::Float(3.14_f32);
     let double = Tag::Double(3.14159265358979_f64);
     let bytearray = Tag::ByteArray(vec![1,2,3,4]);
+    let string = Tag::String(String::from("The quick brown fox jumps over the lazy dog🎈🎄"));
     let list = Tag::List(ListTag::from(vec![1,2,3,4]));
     let intarray = Tag::IntArray(vec![1,1,2,3,5,8,13,21,34,55,89,144]);
-    let longarray = Tag::LongArray(vec![1,3,3,7, 1337, 13,37, 1,3,37,1,337, 133,7, 1,33,7,13,3,7]);
-    let mut compound = Map::from([
+    let longarray = Tag::LongArray((0..8).map(|i| (0xFu64 << i) as i64 ).collect());
+    let compound = Map::from([
         ("Byte".to_owned(), byte.clone()),
         ("Short".to_owned(), short.clone()),
         ("Int".to_owned(), int.clone()),
@@ -82,14 +95,39 @@ fn test_tag() -> Tag {
         ("Float".to_owned(), float.clone()),
         ("Double".to_owned(), double.clone()),
         ("ByteArray".to_owned(), bytearray.clone()),
+        ("String".to_owned(), string.clone()),
         ("List".to_owned(), list.clone()),
-        ("Empty List".to_owned(), Tag::List(ListTag::Empty)),
+        ("Compound".to_owned(), Tag::Compound(Map::from([
+            ("One".to_owned(), 1.into()),
+            ("Two".to_owned(), 2.into()),
+            ("Three".to_owned(), 3.into()),
+            ("True".to_owned(), true.into()),
+            ("False".to_owned(), false.into()),
+            ("Empty List".to_owned(), Tag::List(ListTag::Empty)),
+        ]))),
         ("IntArray".to_owned(), intarray.clone()),
         ("LongArray".to_owned(), longarray.clone()),
     ]);
-    let mapclone = compound.clone();
-    compound.insert("Compound".to_owned(), Tag::Compound(mapclone));
     Tag::Compound(compound)
+}
+
+struct Tester(String);
+
+impl<IT: IntoIterator<Item = i8>> From<IT> for Tester {
+    fn from(it: IT) -> Self {
+        todo!()
+    }
+}
+
+#[test]
+fn compounder_test() {
+    let compound = compounder!{
+        byte : 1i8,
+        string : "The quick brown fox jumps over the lazy dog.",
+        int : 1234,
+        bytes : vec![1i8, 2, 3, 4, 5]
+    };
+    println!("{}", compound);
 }
 
 fn main() -> Result<(),std::io::Error> {
