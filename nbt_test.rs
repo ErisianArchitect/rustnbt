@@ -83,6 +83,7 @@ fn test_tag() -> Tag {
         ("Double".to_owned(), double.clone()),
         ("ByteArray".to_owned(), bytearray.clone()),
         ("List".to_owned(), list.clone()),
+        ("Empty List".to_owned(), Tag::List(ListTag::Empty)),
         ("IntArray".to_owned(), intarray.clone()),
         ("LongArray".to_owned(), longarray.clone()),
     ]);
@@ -94,8 +95,8 @@ fn test_tag() -> Tag {
 fn main() -> Result<(),std::io::Error> {
     use std::fs::File;
     use std::io::*;
-
-    let mut file = File::create("output.nbt")?;
+    let path = "./ignore/output.nbt";
+    let mut file = File::create(path)?;
     let mut writer = BufWriter::new(file);
     let tag = test_tag();
     let named = NamedTag::with_name("Test NBT Root.", tag);
@@ -106,13 +107,13 @@ fn main() -> Result<(),std::io::Error> {
         println!("Failed to write to file.")
     }
     drop(writer);
-    let mut file = File::open("output.nbt")?;
+    let mut file = File::open(path)?;
     let mut reader = BufReader::new(file);
     if let Ok((name, tag)) = read_named_tag(&mut reader) {
         println!("Root Name: {}", name);
         println!("Root Value: {}", tag);
     } else {
-        println!("Failed for some reason.")
+        println!("Failed for some reason.");
     }
     Ok(())
 }
