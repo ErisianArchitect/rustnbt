@@ -224,11 +224,17 @@ impl NbtWrite for TagID {
     }
 }
 
-impl NbtWrite for String {
+impl NbtWrite for &str {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         let length: u16 = self.len() as u16;
         length.nbt_write(writer)?;
         Ok(writer.write_all(self.as_bytes()).map(|_| self.len() + 2)?)
+    }
+}
+
+impl NbtWrite for String {
+    fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
+        self.as_str().nbt_write(writer)
     }
 }
 
@@ -269,7 +275,7 @@ impl NbtWrite for Map {
         //     Payload
         // After iteration, write TagID::End (0u8)
         let write_size = self.iter().try_fold(0usize, |size, (key, tag)| {
-            tag.nbt_write_named(writer, key)
+            write_named_tag(writer, tag, key)
                 .map(|written| written + size)
         })?;
         TagID::End.nbt_write(writer).map(|size| write_size + size)
@@ -308,36 +314,34 @@ primitive_table![
 macro_rules! tag_io {
     ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
 
-        impl Tag {
-            fn nbt_write_named<W: Write>(&self, writer: &mut W, name: &String) -> Result<usize, NbtError> {
-                match self {
-                    $(
-                        Tag::$title(tag) => {
-                            let id_size = TagID::$title.nbt_write(writer)?;
-                            let key_size = name.nbt_write(writer)?;
-                            let tag_size = tag.nbt_write(writer)?;
-                            Ok(id_size + key_size + tag_size)
-                        }
-                    )+
-                }
+        pub fn write_named_tag<W: Write>(writer: &mut W, tag: &Tag, name: &str) -> Result<usize, NbtError> {
+            match tag {
+                $(
+                    Tag::$title(tag) => {
+                        let id_size = TagID::$title.nbt_write(writer)?;
+                        let key_size = name.nbt_write(writer)?;
+                        let tag_size = tag.nbt_write(writer)?;
+                        Ok(id_size + key_size + tag_size)
+                    }
+                )+
             }
+        }
 
-            fn nbt_read_named<R: Read>(reader: &mut R) -> Result<(String, Tag), NbtError> {
-                let id = TagID::nbt_read(reader)?;
-                if matches!(id, TagID::End | TagID::Unsupported) {
-                    return Err(NbtError::Unsupported);
-                }
-                let name = String::nbt_read(reader)?;
-                let tag = match id {
-                    $(
-                        TagID::$title => {
-                            Tag::$title(<$type_>::nbt_read(reader)?)
-                        }
-                    )+
-                    _ => unreachable!("Impossible state."),
-                };
-                Ok((name, tag))
+        pub fn read_named_tag<R: Read>(reader: &mut R) -> Result<(String, Tag), NbtError> {
+            let id = TagID::nbt_read(reader)?;
+            if matches!(id, TagID::End | TagID::Unsupported) {
+                return Err(NbtError::Unsupported);
             }
+            let name = String::nbt_read(reader)?;
+            let tag = match id {
+                $(
+                    TagID::$title => {
+                        Tag::$title(<$type_>::nbt_read(reader)?)
+                    }
+                )+
+                _ => panic!("Impossible state."),
+            };
+            Ok((name, tag))
         }
 
         impl NbtSize for Tag {
@@ -369,7 +373,10 @@ macro_rules! tag_io {
                             )
                         }
                     )+
-                    TagID::End => ListTag::Empty,
+                    TagID::End => {
+                        u32::nbt_read(reader)?;
+                        ListTag::Empty
+                    },
                     TagID::Unsupported => return Err(NbtError::Unsupported),
                 })
             }
@@ -422,13 +429,13 @@ macro_rules! tag_io {
 
         impl NbtWrite for NamedTag {
             fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
-                Ok(self.tag.nbt_write_named(writer, &self.name)?)
+                write_named_tag(writer, &self.tag, &self.name)
             }
         }
 
         impl NbtRead for NamedTag {
             fn nbt_read<R: Read>(reader: &mut R) -> Result<NamedTag, NbtError> {
-                Ok(Tag::nbt_read_named(reader)?.into())
+                Ok(read_named_tag(reader)?.into())
             }
         }
 
@@ -445,3 +452,56 @@ macro_rules! tag_io {
 }
 
 tag_info_table!(tag_io);
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+    use crate::io::*;
+    use crate::tag::*;
+
+    fn create_test_tag() -> Tag {
+        let byte = Tag::Byte(i8::MAX);
+        let short = Tag::Short(i16::MAX);
+        let int = Tag::Int(69420);
+        let long = Tag::Long(i64::MAX);
+        let float = Tag::Float(3.14_f32);
+        let double = Tag::Double(3.14159265358979_f64);
+        let bytearray = Tag::ByteArray(vec![1,2,3,4]);
+        let list = Tag::List(ListTag::Empty);
+        let intarray = Tag::IntArray(vec![1,1,2,3,5,8,13,21,34,55,89,144]);
+        let longarray = Tag::LongArray(vec![1,3,3,7, 1337, 13,37, 1,3,37,1,337, 133,7, 1,33,7,13,3,7]);
+        let mut compound = Map::from([
+            ("Byte".to_owned(), byte.clone()),
+            ("Short".to_owned(), short.clone()),
+            ("Int".to_owned(), int.clone()),
+            ("Long".to_owned(), long.clone()),
+            ("Float".to_owned(), float.clone()),
+            ("Double".to_owned(), double.clone()),
+            ("ByteArray".to_owned(), bytearray.clone()),
+            ("List".to_owned(), list.clone()),
+            ("IntArray".to_owned(), intarray.clone()),
+            ("LongArray".to_owned(), longarray.clone()),
+        ]);
+        compound.insert("Compound".to_owned(), Tag::Compound(compound.clone()));
+        Tag::Compound(compound)
+    }
+
+    #[test]
+    fn write_test() -> Result<(),NbtError> {
+        let mut writer = BufWriter::new(vec![0u8; mebibytes(32)]);
+        let tag = create_test_tag();
+        println!("Size: {}", tag.nbt_size());
+        let size = tag.nbt_write(&mut writer)?;
+        println!("Written: {}", size);
+        Ok(())
+    }
+
+    #[test]
+    fn read_test() -> Result<(), NbtError> {
+        let file = include_bytes!("../hello_world.nbt");
+        let mut reader = BufReader::new(file.as_slice());
+        let named = NamedTag::nbt_read(&mut reader)?;
+        println!("Tag: {:#?}", named);
+        Ok(())
+    }
+}
