@@ -1,8 +1,15 @@
 [package]
 name = "rustnbt"
-authors = ["Derek F. <https://github.com/NullSurplus/>", "Rust Programming Language Discord Server <https://discord.gg/rust-lang-community>"]
 version = "0.1.0"
+authors = ["Derek F. <https://github.com/NullSurplus/>", "Rust Programming Language Discord Server <https://discord.gg/rust-lang-community>"]
 edition = "2021"
+description = "Minecraft NBT Library with additional type support."
+readme = "README.md"
+repository = "https://github.com/NullSurplus/rustnbt"
+license = "MIT"
+license-file = "LICENSE"
+keywords = ["minecraft", "nbt", "serialization","formats"]
+categories = ["parsing", "encoding", "data-structures"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,3 +25,5 @@ thiserror = "1.0"
 num-traits = "0.2.15"
 indexmap = { version = "1.9.1", optional = true }
 bytemuck = "1.12.1"
+
+[workspace]
