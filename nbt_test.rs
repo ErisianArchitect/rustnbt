@@ -98,8 +98,9 @@ fn main() -> Result<(),std::io::Error> {
     let mut file = File::create("output.nbt")?;
     let mut writer = BufWriter::new(file);
     let tag = test_tag();
-    println!("Tag is type {} and is {} bytes in size.", tag.id(), tag.nbt_size());
-    if let Ok(written) = write_named_tag(&mut writer, &tag, "Test NBT Root.") {
+    let named = NamedTag::with_name("Test NBT Root.", tag);
+    println!("Tag is type {} and is {} bytes in size.", named.tag().id(), named.nbt_size());
+    if let Ok(written) = named.nbt_write(&mut writer) {
         println!("Wrote {} bytes to file.", written);
     } else {
         println!("Failed to write to file.")
