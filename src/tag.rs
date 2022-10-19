@@ -4,6 +4,8 @@ use crate::family::*;
 use crate::io::*;
 use crate::tag_info_table;
 use crate::Map;
+use crate::ThisError;
+
 use num_traits::ToPrimitive;
 use std::fmt::Debug;
 use std::fmt::Display;
@@ -25,8 +27,7 @@ pub trait EncodeNbt {
 /// A trait for decoding NBT into an object.
 /// This trait is intended for object that don't have a direct
 /// NBT representation, but can be decoded from NBT data.
-pub trait DecodeNbt
-where Self: Sized {
+pub trait DecodeNbt: Sized {
     type Error;
     /// Tries to decode from NBT.
     fn decode_nbt(nbt: Tag) -> Result<Self, Self::Error>;
@@ -46,6 +47,16 @@ macro_rules! tag_data {
             impl EncodeNbt for $type_ {
                 fn encode_nbt(&self) -> Tag {
                     self.clone().into()
+                }
+            }
+
+            impl DecodeNbt for $type_ {
+                type Error = String;
+                fn decode_nbt(tag: Tag) -> Result<Self, String> {
+                    if let Tag::$title(tag) = tag {
+                        return Ok(tag)
+                    }
+                    Err(format!("Failed to convert from NBT to {}. Found: {}", stringify!($type_), tag.id()))
                 }
             }
 
