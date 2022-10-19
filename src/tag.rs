@@ -60,6 +60,16 @@ macro_rules! tag_data {
                 }
             }
 
+            impl TryFrom<Tag> for $type_ {
+                type Error = ();
+                fn try_from(value: Tag) -> Result<$type_, ()> {
+                    if let Tag::$title(inner) = value {
+                        return Ok(inner);
+                    }
+                    Err(())
+                }
+            }
+
         )+
 
         $($($(
@@ -78,7 +88,6 @@ macro_rules! tag_data {
 
         impl TagID {
             /// PascalCase title of this TagID.
-            #[inline]
             pub fn title(self) -> &'static str {
                 match self {
                     $(
@@ -90,7 +99,6 @@ macro_rules! tag_data {
             }
 
             /// In the format of TAG_TagTitle.
-            #[inline]
             pub fn name(self) -> &'static str {
                 match self {
                     $(
@@ -115,12 +123,14 @@ macro_rules! tag_data {
         }
 
         /// The NBT Tag enum.
+        /// To see what types are supported, take a look at `table.rs`.
         #[derive(Clone, Debug)]
         pub enum Tag {
             $($title($type_),)+
         }
 
         impl Tag {
+            /// Returns the NBT type ID.
             pub fn id(&self) -> TagID {
                 match self {
                     $(Tag::$title(_) => TagID::$title,)+
@@ -145,6 +155,7 @@ macro_rules! tag_data {
         /// Enum type for Tag::List.
         #[derive(Clone, Debug)]
         pub enum ListTag {
+            /// Represents a ListTag without any elements.
             Empty,
             $($title(Vec<$type_>),)+
         }
@@ -157,14 +168,12 @@ macro_rules! tag_data {
 
         $(
             impl From<Vec<$type_>> for ListTag {
-                #[inline]
                 fn from(value: Vec<$type_>) -> Self {
                     ListTag::$title(value)
                 }
             }
 
             impl From<&[$type_]> for ListTag {
-                #[inline]
                 fn from(value: &[$type_]) -> Self {
                     ListTag::$title(value.to_vec())
                 }
@@ -172,14 +181,12 @@ macro_rules! tag_data {
         )+
 
         impl ListTag {
-            #[inline]
             pub fn id(&self) -> TagID {
                 match self {
                     ListTag::Empty => TagID::End,
                     $(ListTag::$title(_) => TagID::$title,)+
                 }
             }
-            #[inline]
             pub fn len(&self) -> usize {
                 match self {
                     $(ListTag::$title(list) => list.len(),)+
@@ -200,7 +207,6 @@ impl Display for TagID {
 
 impl TagID {
     /// Returns this TagID as a usize.
-    #[inline]
     pub fn value(self) -> usize {
         self as usize
     }
@@ -208,12 +214,10 @@ impl TagID {
 
 impl Tag {
     /// PascalCase title of this TagID.
-    #[inline]
     pub fn title(&self) -> &'static str {
         self.id().title()
     }
     /// In the format of TAG_TagTitle.
-    #[inline]
     pub fn name(&self) -> &'static str {
         self.id().name()
     }
@@ -272,7 +276,6 @@ impl Tag {
 }
 
 impl From<&str> for Tag {
-    #[inline]
     fn from(value: &str) -> Self {
         Tag::String(String::from(value))
     }
@@ -342,8 +345,8 @@ where
     }
 }
 
-impl From<NamedTag> for (String, Tag) {
+impl<S: From<String>> From<NamedTag> for (S, Tag) {
     fn from(value: NamedTag) -> Self {
-        (value.name, value.tag)
+        (S::from(value.name), value.tag)
     }
 }
