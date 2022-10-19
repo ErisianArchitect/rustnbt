@@ -206,7 +206,7 @@ impl Tag {
     pub fn shortarray<T: Into<i16>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::ShortArray(it.into_iter().map(T::into).collect())
     }
-    
+
     pub fn longarray<T: Into<i64>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::LongArray(it.into_iter().map(T::into).collect())
     }

@@ -18,7 +18,7 @@ use crate::family::*;
 ///         // generation code here.
 ///     }
 /// }
-/// 
+///
 /// tag_info_table!(read_table);
 /// ```
 #[macro_export]
