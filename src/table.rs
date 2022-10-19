@@ -1,6 +1,15 @@
 use crate::family::*;
 
-// ($($id:literal $title:ident $type_:ty $([$($family:ty),*])?)+) => {}
+// The next line is the pattern to capture the lines of the table.
+// ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {}
+/// Macro used for accessing the tag info table which contains information
+/// about all the tag types, their tag name, their type, and the last column is for implementations.
+/// Implementations are applied to the type of the tag.
+/// So for example: Tag::Byte is i8, so we would implement Primitive for i8.
+/// Implementations:
+///            Primitive: Marker that tells the compiler that this is a known-sized type and should be treated as such.
+///              NonByte: Marker that tells the compiler that this is a type that is not 8-bits wide.
+///     NonBytePrimitive: Marker that combines the Primitive and NonByte marker.
 #[macro_export]
 macro_rules! tag_info_table {
     ($macro:ident) => {
