@@ -1,17 +1,14 @@
 // https://wiki.vg/NBT
 
 use crate::family::*;
-use crate::io::*;
 use crate::tag_info_table;
 use crate::Map;
 use crate::ThisError;
 
 use num_traits::ToPrimitive;
 use num_traits::Zero;
-use num_traits::identities::*;
 use std::fmt::Debug;
 use std::fmt::Display;
-use std::io::IntoInnerError;
 
 /// Marks that a type is directly represented as an NBT tag type.
 pub trait NbtType {
@@ -336,6 +333,7 @@ impl From<&str> for Tag {
     }
 }
 
+
 impl<S, T> From<(S,T)> for NamedTag
 where
     S: Into<String>,
@@ -375,18 +373,13 @@ impl TryFrom<Tag> for bool {
     }
 }
 
-impl<S, T> TryFrom<NamedTag> for (S, T)
+impl<S> From<NamedTag> for (S,Tag)
 where
-    S: From<String>,
-    T: TryFrom<Tag> {
-    type Error = ();
-    /// Trys to create a Tuple from a NamedTag. This may be useful in iterators.
-    fn try_from(value: NamedTag) -> Result<Self, Self::Error> {
-        if let Ok(tag) = T::try_from(value.tag) {
-            return Ok((value.name.into(), tag));
-        }
-        Err(())
+    S: From<String> {
+    fn from(value: NamedTag) -> Self {
+        (S::from(value.name), value.tag)
     }
+    
 }
 
 impl Display for TagID {
@@ -405,4 +398,36 @@ impl Display for ListTag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{:#?}", self))
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn value_tests(){
+        use crate::tag::*;
+        let named: (String, Tag) = NamedTag::with_name("test", Tag::Byte(13)).into();
+        assert_eq!(named.0, "test");
+        assert!(matches!(named.1, Tag::Byte(13)));
+        let byte = Tag::Byte(i8::MAX);
+        assert!(matches!(byte, Tag::Byte(i8::MAX)));
+        let short = Tag::Short(i16::MAX);
+        assert!(matches!(short, Tag::Short(i16::MAX)));
+        let int = Tag::Int(69420);
+        assert!(matches!(int, Tag::Int(69420)));
+        let long = Tag::Long(i64::MAX);
+        assert!(matches!(long, Tag::Long(i64::MAX)));
+        let float = Tag::Float(3.14_f32);
+        let double = Tag::Double(3.14159265358979_f64);
+        let bytearray = Tag::ByteArray(vec![1,2,3,4]);
+        let list = Tag::List(ListTag::Empty);
+        let intarray = Tag::IntArray(vec![1,1,2,3,5,8,13,21,34,55,89,144]);
+        let longarray = Tag::LongArray(vec![1,3,3,7, 1337, 13,37, 1,3,37,1,337, 133,7, 1,33,7,13,3,7]);
+        let compound = Tag::Compound(Map::from([
+            ("Byte".to_owned(), byte.clone()),
+            ("Short".to_owned(), short.clone()),
+            ("Pi".to_owned(), double.clone()),
+        ]));
+    }
+
 }
