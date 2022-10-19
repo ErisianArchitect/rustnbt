@@ -14,17 +14,22 @@ pub trait NbtType {
     fn nbt(self) -> Tag;
 }
 
-/// A trait used to convert an object to its NBT representation.
-/// This is different from `Into<Tag>` in the sense that `Into<Tag>` is meant
-/// for types with a direct NBT representation, while `ToNbt` is not.
-pub trait ToNbt {
-    fn to_nbt(self) -> Tag;
+/// A trait for encoding an object as NBT.
+/// This trait is intended for objects that don't have a direct
+/// NBT representation, but can be encoded as an NBT tree.
+pub trait EncodeNbt {
+    /// Encode as NBT.
+    fn encode_nbt(&self) -> Tag;
 }
 
-impl<T: Into<Tag>> ToNbt for T {
-    fn to_nbt(self) -> Tag {
-        self.into()
-    }
+/// A trait for decoding NBT into an object.
+/// This trait is intended for object that don't have a direct
+/// NBT representation, but can be decoded from NBT data.
+pub trait DecodeNbt
+where Self: Sized {
+    type Error;
+    /// Tries to decode from NBT.
+    fn decode_nbt(nbt: Tag) -> Result<Self, Self::Error>;
 }
 
 macro_rules! tag_data {
@@ -37,6 +42,13 @@ macro_rules! tag_data {
                     self.into()
                 }
             }
+
+            impl EncodeNbt for $type_ {
+                fn encode_nbt(&self) -> Tag {
+                    self.clone().into()
+                }
+            }
+
         )+
 
         $($($(
