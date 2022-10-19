@@ -1,6 +1,6 @@
 [package]
 name = "rustnbt"
-authors = ["Derek F. <https://github.com/NullSurplus/>"]
+authors = ["Derek F. <https://github.com/NullSurplus/>", "Rust Programming Language Discord Server <https://discord.gg/rust-lang-community>"]
 version = "0.1.0"
 edition = "2021"
 
@@ -10,8 +10,11 @@ edition = "2021"
 name = "rustnbt"
 path = "nbt_test.rs"
 
+[features]
+preserve_order = ["dep:indexmap"]
+
 [dependencies]
-indexmap = "1.9.1"
-flate2 = "1.0"
 thiserror = "1.0"
 num-traits = "0.2.15"
+flate2 = "1.0"
+indexmap = { version = "1.9.1", optional = true }

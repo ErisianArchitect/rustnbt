@@ -3,18 +3,20 @@
 use crate::family::*;
 use crate::io::*;
 use crate::tag_info_table;
-use indexmap::IndexMap;
+use crate::Map;
 use num_traits::ToPrimitive;
 use std::fmt::Debug;
 use std::fmt::Display;
 
-pub type Map = IndexMap<String, Tag>;
-
+/// Marks that a type is directly represented as an NBT tag type.
 pub trait NbtType {
     const ID: TagID;
     fn nbt(self) -> Tag;
 }
 
+/// A trait used to convert an object to its NBT representation.
+/// This is different from `Into<Tag>` in the sense that `Into<Tag>` is meant
+/// for types with a direct NBT representation, while `ToNbt` is not.
 pub trait ToNbt {
     fn to_nbt(self) -> Tag;
 }
@@ -41,6 +43,7 @@ macro_rules! tag_data {
             impl $impl for $type_ {}
         )*)?)+
 
+        /// The TagID represents the NBT type ID of a Tag.
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
         pub enum TagID {
             End = 0,
@@ -88,6 +91,7 @@ macro_rules! tag_data {
             }
         }
 
+        /// The NBT Tag enum.
         #[derive(Clone, Debug)]
         pub enum Tag {
             $($title($type_),)+
@@ -110,11 +114,12 @@ macro_rules! tag_data {
         $(
             impl From<$type_> for Tag {
                 fn from(value: $type_) -> Self {
-                    Tag::$title(value.into())
+                    Tag::$title(value)
                 }
             }
         )+
 
+        /// Enum type for Tag::List.
         #[derive(Clone, Debug)]
         pub enum ListTag {
             Empty,
@@ -141,7 +146,6 @@ macro_rules! tag_data {
                     ListTag::$title(value.to_vec())
                 }
             }
-
         )+
 
         impl ListTag {
@@ -191,30 +195,37 @@ impl Tag {
         self.id().name()
     }
 
+    /// Create a Tag::ByteArray from the provided iterable.
     pub fn bytearray<T: Into<i8>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::ByteArray(it.into_iter().map(T::into).collect())
     }
 
+    /// Create a Tag::ByteArray from the provided iterable.
     pub fn bytes<T: Into<u8>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::ByteArray(it.into_iter().map(|value| value.into() as i8).collect())
     }
 
+    /// Create a Tag::IntArray from the provided iterable.
     pub fn intarray<T: Into<i32>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::IntArray(it.into_iter().map(T::into).collect())
     }
 
+    /// Create a Tag::ShortArray from the provided iterable.
     pub fn shortarray<T: Into<i16>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::ShortArray(it.into_iter().map(T::into).collect())
     }
 
+    /// Create a Tag::LongArray from the provided iterable.
     pub fn longarray<T: Into<i64>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::LongArray(it.into_iter().map(T::into).collect())
     }
 
+    /// Create a Tag::String.
     pub fn string<S: Into<String>>(value: S) -> Tag {
         Tag::String(value.into())
     }
-
+    
+    /// Create a Tag::List.
     pub fn list<T>(array: T) -> Tag
     where
         T: Into<ListTag>,
@@ -222,6 +233,7 @@ impl Tag {
         Tag::List(array.into())
     }
 
+    /// Create a Tag::Compound.
     pub fn compound<S, T, IT>(items: IT) -> Tag
     where
         S: Into<String>,
@@ -243,6 +255,7 @@ impl From<&str> for Tag {
     }
 }
 
+/// Represents a Named NBT Tag, often used as a Tag Root for an NBT file.
 #[derive(Clone, Debug)]
 pub struct NamedTag {
     pub(crate) name: String,
@@ -250,6 +263,7 @@ pub struct NamedTag {
 }
 
 impl NamedTag {
+    /// Creates a new NamedTag that has a blank name (`String::default()`)
     pub fn new<T>(tag: T) -> Self
     where
         T: Into<Tag>,
@@ -258,6 +272,17 @@ impl NamedTag {
             name: String::default(),
             tag: tag.into(),
         }
+    }
+
+    /// Creates a new NamedTag with a name.
+    pub fn with_name<S, T>(name: S, tag: T) -> Self
+    where
+        S: Into<String>,
+        T: Into<Tag> {
+            Self {
+                name: name.into(),
+                tag: tag.into(),
+            }
     }
 
     pub fn name(&self) -> &str {

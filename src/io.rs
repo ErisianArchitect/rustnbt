@@ -1,6 +1,7 @@
 // https://wiki.vg/NBT
 // https://minecraft.fandom.com/wiki/NBT_format
 
+use crate::Map;
 use crate::family::*;
 #[allow(unused)]
 use std::io::{BufReader, BufWriter, Cursor, Error, Read, Seek, SeekFrom, Write};
