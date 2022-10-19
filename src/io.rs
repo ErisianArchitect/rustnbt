@@ -232,7 +232,7 @@ impl NbtWrite for String {
     }
 }
 
-// This is a special implementation for writing Vectors that
+// This is a special implementation for writing Vectors of types that
 // are not u8 or i8.
 impl<T: NbtWrite + Not<Byte>> NbtWrite for Vec<T> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
@@ -241,7 +241,8 @@ impl<T: NbtWrite + Not<Byte>> NbtWrite for Vec<T> {
     }
 }
 
-// This is a special implementation
+// This is a special implementation for writing Vec<i8>.
+// Profiling showed that this was an improvement, so it's what I'm going with.
 impl NbtWrite for Vec<i8> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
@@ -250,6 +251,8 @@ impl NbtWrite for Vec<i8> {
     }
 }
 
+// This is a special implementation for writing Vec<u8>.
+// Profiling showed that this was an improvement, so it's what I'm going with.
 impl NbtWrite for Vec<u8> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
@@ -273,6 +276,7 @@ impl NbtWrite for Map {
     }
 }
 
+/// Blanket implementations for reading and writing primitives (scalar types).
 macro_rules! primitive_table {
     ($($primitive:ident $(write = $writer:ident)? $(read = $read:ident)?)+) => {
         $(
@@ -303,6 +307,39 @@ primitive_table![
 
 macro_rules! tag_io {
     ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
+
+        impl Tag {
+            fn nbt_write_named<W: Write>(&self, writer: &mut W, name: &String) -> Result<usize, NbtError> {
+                match self {
+                    $(
+                        Tag::$title(tag) => {
+                            let id_size = TagID::$title.nbt_write(writer)?;
+                            let key_size = name.nbt_write(writer)?;
+                            let tag_size = tag.nbt_write(writer)?;
+                            Ok(id_size + key_size + tag_size)
+                        }
+                    )+
+                }
+            }
+
+            fn nbt_read_named<R: Read>(reader: &mut R) -> Result<(String, Tag), NbtError> {
+                let id = TagID::nbt_read(reader)?;
+                if matches!(id, TagID::End | TagID::Unsupported) {
+                    return Err(NbtError::Unsupported);
+                }
+                let name = String::nbt_read(reader)?;
+                let tag = match id {
+                    $(
+                        TagID::$title => {
+                            Tag::$title(<$type_>::nbt_read(reader)?)
+                        }
+                    )+
+                    _ => unreachable!("Impossible state."),
+                };
+                Ok((name, tag))
+            }
+        }
+
         impl NbtSize for Tag {
             fn nbt_size(&self) -> usize {
                 match self {
@@ -320,7 +357,6 @@ macro_rules! tag_io {
             }
         }
 
-        // Complete!
         impl NbtRead for ListTag {
             fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
                 let id = TagID::nbt_read(reader)?;
@@ -339,7 +375,6 @@ macro_rules! tag_io {
             }
         }
 
-        // Complete!
         impl NbtWrite for ListTag {
             fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize,NbtError> {
                 match self {
@@ -382,38 +417,6 @@ macro_rules! tag_io {
                     id = TagID::nbt_read(reader)?;
                 }
                 Ok(map)
-            }
-        }
-
-        impl Tag {
-            fn nbt_write_named<W: Write>(&self, writer: &mut W, name: &String) -> Result<usize, NbtError> {
-                match self {
-                    $(
-                        Tag::$title(tag) => {
-                            let id_size = TagID::$title.nbt_write(writer)?;
-                            let key_size = name.nbt_write(writer)?;
-                            let tag_size = tag.nbt_write(writer)?;
-                            Ok(id_size + key_size + tag_size)
-                        }
-                    )+
-                }
-            }
-
-            fn nbt_read_named<R: Read>(reader: &mut R) -> Result<(String, Tag), NbtError> {
-                let id = TagID::nbt_read(reader)?;
-                if matches!(id, TagID::End | TagID::Unsupported) {
-                    return Err(NbtError::Unsupported);
-                }
-                let name = String::nbt_read(reader)?;
-                let tag = match id {
-                    $(
-                        TagID::$title => {
-                            Tag::$title(<$type_>::nbt_read(reader)?)
-                        }
-                    )+
-                    _ => unreachable!("Impossible state."),
-                };
-                Ok((name, tag))
             }
         }
 
