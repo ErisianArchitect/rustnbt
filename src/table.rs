@@ -1,5 +1,3 @@
-use crate::family::*;
-
 // The next line is the pattern to capture the lines of the table.
 // ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {}
 
@@ -58,4 +56,4 @@ macro_rules! tag_info_table {
     };
 }
 
-pub use tag_info_table;
+pub(crate) use tag_info_table;
