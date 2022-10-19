@@ -241,7 +241,6 @@ impl NbtWrite for Map {
 macro_rules! primitive_table {
     ($($primitive:ident $(write = $writer:ident)? $(read = $read:ident)?)+) => {
         $(
-
             impl NbtRead for $primitive {
                 fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
                     let mut buf = [0u8; std::mem::size_of::<$primitive>()];
@@ -269,8 +268,6 @@ primitive_table![
 
 macro_rules! tag_io {
     ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
-
-
         impl NbtSize for Tag {
             fn size_in_bytes(&self) -> usize {
                 match self {
@@ -406,7 +403,6 @@ macro_rules! tag_io {
                 }
             }
         }
-
     };
 }
 
