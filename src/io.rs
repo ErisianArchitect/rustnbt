@@ -1,13 +1,38 @@
 // https://wiki.vg/NBT
 // https://minecraft.fandom.com/wiki/NBT_format
 
-use crate::Map;
-use crate::family::*;
-#[allow(unused)]
-use std::io::{BufReader, BufWriter, Cursor, Error, Read, Seek, SeekFrom, Write};
-use std::ops::Mul;
+use crate::{
+    Map,
+    ThisError,
+    tag::{
+        Tag,
+        TagID,
+        ListTag,
+        NamedTag,
+    },
+    family::{
+        Not,
+        Byte,
+        NonByte,
+        Primitive,
+        NonBytePrimitive,
+    },
+    tag_info_table
+};
+use std::{
+    io::{
+        BufReader,
+        BufWriter,
+        Cursor,
+        Error,
+        Read,
+        Seek,
+        SeekFrom,
+        Write,
+    },
+    ops::Mul,
+};
 
-use thiserror::Error as ThisError;
 
 #[derive(ThisError, Debug)]
 pub enum NbtError {
@@ -18,8 +43,6 @@ pub enum NbtError {
     #[error("Unsupported Tag ID.")]
     Unsupported,
 }
-
-use crate::{tag::*, tag_info_table};
 
 /// A const function that returns the number of bytes that size kibibytes would be.
 const fn kibibytes(size: usize) -> usize {
