@@ -7,12 +7,10 @@ use indexmap::IndexMap;
 use num_traits::ToPrimitive;
 use std::fmt::Debug;
 use std::fmt::Display;
-use std::marker::PhantomData;
 
 pub type Map = IndexMap<String, Tag>;
 
 pub trait NbtType {
-    // I don't know what this trait should have.
     const ID: TagID;
     fn nbt(self) -> Tag;
 }
@@ -27,7 +25,6 @@ impl<T: Into<Tag>> ToNbt for T {
     }
 }
 
-// This macro is not for those with weak dispositions.
 macro_rules! tag_data {
     ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
 
@@ -206,12 +203,12 @@ impl Tag {
         Tag::IntArray(it.into_iter().map(T::into).collect())
     }
 
-    pub fn longarray<T: Into<i64>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
-        Tag::LongArray(it.into_iter().map(T::into).collect())
-    }
-
     pub fn shortarray<T: Into<i16>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::ShortArray(it.into_iter().map(T::into).collect())
+    }
+    
+    pub fn longarray<T: Into<i64>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
+        Tag::LongArray(it.into_iter().map(T::into).collect())
     }
 
     pub fn string<S: Into<String>>(value: S) -> Tag {
@@ -281,10 +278,6 @@ impl NamedTag {
 
     pub fn set_name<T: Into<String>>(&mut self, name: T) {
         self.name = name.into();
-    }
-
-    pub fn clear_name(&mut self) {
-        self.name = String::default();
     }
 }
 
