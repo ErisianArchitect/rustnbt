@@ -245,10 +245,7 @@ impl<T: NbtWrite + Not<Byte>> NbtWrite for Vec<T> {
 impl NbtWrite for Vec<i8> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
-        // self: Vec<i8>
-        let u8slice: &[u8] = unsafe {
-            std::slice::from_raw_parts(self.as_slice().as_ptr() as *const u8, self.len())
-        };
+        let u8slice: &[u8] = bytemuck::cast_slice(self.as_slice());
         Ok(write_bytes(writer, u8slice)? + 4)
     }
 }
