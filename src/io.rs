@@ -11,8 +11,6 @@ use crate::{
         NamedTag,
     },
     family::{
-        Not,
-        Byte,
         NonByte,
         Primitive,
         NonBytePrimitive,
@@ -167,7 +165,7 @@ where
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError>;
 }
 
-impl<T: NbtRead + Not<Byte>> NbtRead for Vec<T> {
+impl<T: NbtRead + NonByte> NbtRead for Vec<T> {
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
         let length = u32::nbt_read(reader)?;
         read_array(reader, length as usize)
@@ -240,7 +238,7 @@ impl NbtWrite for String {
 
 // This is a special implementation for writing Vectors of types that
 // are not u8 or i8.
-impl<T: NbtWrite + Not<Byte>> NbtWrite for Vec<T> {
+impl<T: NbtWrite + NonByte> NbtWrite for Vec<T> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
         write_array(writer, self.as_slice()).map(|size| size + 4)
@@ -465,7 +463,7 @@ mod tests {
     use crate::io::*;
     use crate::tag::*;
 
-    fn create_test_tag() -> Tag {
+    fn test_tag() -> Tag {
         let byte = Tag::Byte(i8::MAX);
         let short = Tag::Short(i16::MAX);
         let int = Tag::Int(69420);
@@ -473,7 +471,7 @@ mod tests {
         let float = Tag::Float(3.14_f32);
         let double = Tag::Double(3.14159265358979_f64);
         let bytearray = Tag::ByteArray(vec![1,2,3,4]);
-        let list = Tag::List(ListTag::Empty);
+        let list = Tag::List(ListTag::from(vec![1,2,3,4]));
         let intarray = Tag::IntArray(vec![1,1,2,3,5,8,13,21,34,55,89,144]);
         let longarray = Tag::LongArray(vec![1,3,3,7, 1337, 13,37, 1,3,37,1,337, 133,7, 1,33,7,13,3,7]);
         let mut compound = Map::from([
@@ -485,17 +483,19 @@ mod tests {
             ("Double".to_owned(), double.clone()),
             ("ByteArray".to_owned(), bytearray.clone()),
             ("List".to_owned(), list.clone()),
+            ("Empty List".to_owned(), Tag::List(ListTag::Empty)),
             ("IntArray".to_owned(), intarray.clone()),
             ("LongArray".to_owned(), longarray.clone()),
         ]);
-        compound.insert("Compound".to_owned(), Tag::Compound(compound.clone()));
+        let mapclone = compound.clone();
+        compound.insert("Compound".to_owned(), Tag::Compound(mapclone));
         Tag::Compound(compound)
     }
 
     #[test]
     fn write_test() -> Result<(),NbtError> {
         let mut writer = BufWriter::new(vec![0u8; mebibytes(32)]);
-        let tag = create_test_tag();
+        let tag = test_tag();
         println!("Size: {}", tag.nbt_size());
         let size = tag.nbt_write(&mut writer)?;
         println!("Written: {}", size);
