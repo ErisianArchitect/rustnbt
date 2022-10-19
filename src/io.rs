@@ -453,6 +453,12 @@ macro_rules! tag_io {
 
 tag_info_table!(tag_io);
 
+impl NbtSize for NamedTag {
+    fn nbt_size(&self) -> usize {
+        self.name.nbt_size() + self.tag.nbt_size() + 1
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::*;
