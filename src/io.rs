@@ -268,7 +268,7 @@ primitive_table![
 ];
 
 macro_rules! tag_io {
-    ($($id:literal $title:ident $type_:ty $([$($impl:path),*])?)+) => {
+    ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
 
 
         impl NbtSize for Tag {

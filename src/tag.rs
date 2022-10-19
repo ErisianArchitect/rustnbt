@@ -29,7 +29,7 @@ impl<T: Into<Tag>> ToNbt for T {
 
 // This macro is not for those with weak dispositions.
 macro_rules! tag_data {
-    ($($id:literal $title:ident $type_:ty $([$($impl:path),*])?)+) => {
+    ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
 
         $(
             impl NbtType for $type_ {
