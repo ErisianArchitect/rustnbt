@@ -40,7 +40,6 @@ pub trait DecodeNbt: Sized + EncodeNbt {
 /// It utilizes the table in `\src\table.rs`.
 macro_rules! tag_data {
     ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
-
         /// The NBT Tag enum.
         /// To see what types are supported, take a look at `table.rs`.
         #[derive(Clone, Debug)]
@@ -186,7 +185,6 @@ macro_rules! tag_data {
                     Err(())
                 }
             }
-
         )+
     };
 }
@@ -319,6 +317,7 @@ impl NamedTag {
     }
 }
 
+/// Creates a Tag::Byte from a boolean value.
 impl From<bool> for Tag {
     /// Create a Tag::Byte from a boolean value.
     fn from(on: bool) -> Self {
@@ -326,6 +325,7 @@ impl From<bool> for Tag {
     }
 }
 
+/// Creates a Tag from &str
 impl From<&str> for Tag {
     /// Creates a [Tag::String].
     fn from(value: &str) -> Self {
@@ -333,7 +333,7 @@ impl From<&str> for Tag {
     }
 }
 
-
+/// Creates a NamedTag from (Into<String>, Into<Tag>)
 impl<S, T> From<(S,T)> for NamedTag
 where
     S: Into<String>,
