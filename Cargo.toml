@@ -6,7 +6,6 @@ edition = "2021"
 description = "Minecraft NBT Library with additional type support."
 readme = "README.md"
 repository = "https://github.com/NullSurplus/rustnbt"
-license = "MIT"
 license-file = "LICENSE"
 keywords = ["minecraft", "nbt", "serialization","formats"]
 categories = ["parsing", "encoding", "data-structures"]
