@@ -84,7 +84,7 @@ fn test_tag() -> Tag {
     let double = Tag::Double(3.14159265358979_f64);
     let bytearray = Tag::ByteArray(vec![1,2,3,4]);
     let string = Tag::String(String::from("The quick brown fox jumps over the lazy dog🎈🎄"));
-    let list = Tag::List(ListTag::from(vec![1,2,3,4]));
+    let list = Tag::List(ListTag::from(vec![byte.clone(),short.clone(),int.clone(),long.clone()]));
     let intarray = Tag::IntArray(vec![1,1,2,3,5,8,13,21,34,55,89,144]);
     let longarray = Tag::LongArray((0..8).map(|i| (0xFu64 << i) as i64 ).collect());
     let compound = Map::from([
