@@ -52,7 +52,7 @@ Although I wrote it for my own purposes, you are free to use it for your own.
 
 If you prefer that the order of elements in a Compound tag are preserved, you can add the `preserve_order` feature.
 This feature will use [indexmap](https://docs.rs/indexmap/latest/indexmap/) to preserve order. This adds a small toll to the size of the Tag enum type, and also incurs a small performance penalty. Minecraft does not specify that tags must be in any particular order, so it is merely a matter of preference. This feature is off by default.<br>
-If you would like to try out the tag type extensions, you will need the `extensions` feature enabled. These are experimental extensions to Minecraft's NBT format, and I do not advise you to use it in production code. They were merely added into the library because I found that I could withut having to write a bunch of extra code to support them.
+If you would like to try out the tag type extensions, you will need the `extensions` feature enabled. These are experimental extensions to Minecraft's NBT format, and I do not advise you to use it in production code. They were merely added into the library because I found that I could without having to write a bunch of extra code to support them.
 
 # Example Usage
 
