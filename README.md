@@ -1,9 +1,9 @@
-## rustnbt
+# rustnbt
 NBT format library.
 
 This implements Minecraft's NBT format, then adds some tags to the format.
 
-# Coverage
+## Coverage
 ```rs
 //ID  Name                Type         
 //=====================================
@@ -43,10 +43,10 @@ One thing to note is that the extensions types have IDs tht start at 128. This i
 
 I have future plans to extend to library some more, but nothing I'm ready to put on paper.
 
-# Reason
+### Reason
 I wrote this library because I wanted to add something new to the mix. I needed a library that could serialize and deserialize NBT, and I didn't want to use someone else's library, so I wrote my own and then added some extra functionality as the cherry on top. A have a need for this library for a future project, which is what inspire it's creation, but you are free to use it for your own purposes.
 
-# Before Use
+## Before Use
 If you prefer that the order of elements in a Compound tag are preserved, you can add the `preserve_order` feature.
 
 If you would like to try out the extensions, you will need the `extensions` feature enabled.
