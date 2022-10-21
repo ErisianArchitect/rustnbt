@@ -16,6 +16,7 @@ publish = false
 
 [features]
 preserve_order = ["dep:indexmap"]
+extensions = []
 
 [dependencies]
 thiserror = "1.0"
