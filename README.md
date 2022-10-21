@@ -96,15 +96,17 @@ let compound = Tag::Compound(Map::from([
     ("IntArray".to_owned(), intarray),
     ("LongArray".to_owned(), longarray),
 ]));
-// So let's say you want to create a compound, but you don't want to have to type String::from/to_string/to_owned/etc and Tag::from/into/etc.
-// Well the compound macro makes it easy to create compound tags without hurting your pwecious wittle fingy wingies.
+// So let's say you want to create a compound, but you don't want to have
+// to type String::from/to_string/to_owned/etc and Tag::from/into/etc.
+// Well the compound macro makes it easy to create compound tags
+// without hurting your pwecious wittle fingy wingies.
 let compound = compound!(
     ("One", 1),
     ("Two".to_owned(), Tag::Byte(2)),
     ("String", "Hello, world!")
 );
-// There is also a macro for Tag::List, but I don't feel like documenting it right now.
-// Oh, alright. Fine. I'll tell show you.
+// There is also a macro for Tag::List, but I don't feel like documenting
+// it right now. Oh, alright. Fine. I'll tell show you.
 let list_int = list!(
     1,
     2,
