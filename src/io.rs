@@ -43,10 +43,7 @@ pub trait NbtSize {
 }
 
 /// A trait for reading values from readers.
-pub trait NbtRead
-where
-    Self: Sized,
-{
+pub trait NbtRead: Sized {
     /// Attempt to read a value from a reader.
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError>;
 }
