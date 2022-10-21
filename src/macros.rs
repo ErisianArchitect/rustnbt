@@ -12,7 +12,7 @@ macro_rules! compound {
     ($(($name:expr, $value:expr)),+) => {
         $crate::tag::Tag::Compound($crate::Map::from([
             $(
-                (String::from($name), $crate::tag::Tag::from($value)),
+                (std::string::String::from($name), $crate::tag::Tag::from($value)),
             )+
         ]))
     };
@@ -33,14 +33,14 @@ macro_rules! compound {
 #[macro_export]
 macro_rules! list {
     ($($item:expr),+) => {
-        $crate::tag::Tag::List($crate::tag::ListTag::from(vec![
+        $crate::tag::Tag::List($crate::tag::ListTag::from(std::vec![
             $(
                 ($item).to_owned(),
             )+
         ]))
     };
     ($value:expr; $repititions:expr) => {
-        $crate::tag::Tag::List($crate::tag::ListTag::from(vec![($value).to_owned(); $repititions]))
+        $crate::tag::Tag::List($crate::tag::ListTag::from(std::vec![($value).to_owned(); $repititions]))
     };
     () => {
         $crate::tag::Tag::List($crate::tag::ListTag::Empty);
