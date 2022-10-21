@@ -23,12 +23,12 @@ macro_rules! list {
     ($($item:expr),+) => {
         $crate::tag::Tag::List($crate::tag::ListTag::from(vec![
             $(
-                $item,
+                ($item).to_owned(),
             )+
         ]))
     };
     ($value:expr; $repititions:expr) => {
-        $crate::tag::Tag::List($crate::tag::ListTag::from(vec![$value; $repititions]))
+        $crate::tag::Tag::List($crate::tag::ListTag::from(vec![($value).to_owned(); $repititions]))
     };
     () => {
         $crate::tag::Tag::List($crate::tag::ListTag::Empty);
