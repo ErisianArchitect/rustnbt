@@ -56,7 +56,7 @@ pub trait NbtWrite {
 
 /// Blanket implementations for reading and writing primitives (scalar types).
 macro_rules! primitive_table {
-    ($($primitive:ident $(write = $writer:ident)? $(read = $read:ident)?)+) => {
+    ($($primitive:ident)+) => {
         $(
             impl NbtRead for $primitive {
                 /// Attempts to read primitive from reader. This will read in Big-Endian byte-order.
