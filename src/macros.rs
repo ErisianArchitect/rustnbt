@@ -18,6 +18,18 @@ macro_rules! compound {
     };
 }
 
+/// Shorthand way to create a Tag::List.
+/// Example:
+/// ```no_run
+/// list!{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+/// list![
+///     "One",
+///     "Two",
+///     "Three",
+///     "Four",
+///     "Five"
+/// ];
+/// ``` 
 #[macro_export]
 macro_rules! list {
     ($($item:expr),+) => {
