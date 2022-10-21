@@ -75,12 +75,12 @@ macro_rules! unwrap_block {
 macro_rules! match_origin {
     (extension;  $(extension => $extension:block)? $(minecraft => $minecraft:block)?) => {
         $(
-            unwrap_block!{$extension}
+            $crate::unwrap_block!{$extension}
         )?
     };
     (minecraft; $(extension => $extension:block)? $(minecraft => $minecraft:block)?) => {
         $(
-            unwrap_block!{$minecraft}
+            $crate::unwrap_block!{$minecraft}
         )?
     };
 }
@@ -88,13 +88,13 @@ macro_rules! match_origin {
 #[macro_export]
 macro_rules! match_subtype {
     (scalar; $(scalar = $scalar:block)? $(array = $array:block)? $(other = $other:block)?) => {
-        unwrap_block!{$scalar}
+        $crate::unwrap_block!{$scalar}
     };
     (array; $(scalar = $scalar:block)? $(array = $array:block)? $(other = $other:block)?) => {
-        unwrap_block!{$array}
+        $crate::unwrap_block!{$array}
     };
     (other; $(scalar = $scalar:block)? $(array = $array:block)? $(other = $other:block)?) => {
-        unwrap_block!{$other}
+        $crate::unwrap_block!{$other}
     };
 }
 
