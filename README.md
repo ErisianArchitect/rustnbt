@@ -45,12 +45,12 @@ One thing to note is that the extension types have IDs that start at `128`. This
 
 ### Reason
 
-I wrote this library because I wanted to add something new to the mix. I needed a library that could serialize and deserialize NBT, and I didn't want to use someone else's library, so I wrote my own and then added some extra functionality as the cherry on top. A have a need for this library for a future project, which is what inspired its creation, but you are free to use it for your own purposes.
+I wrote this library because I needed a library that could serialize and deserialize NBT, and I didn't want to use someone else's library, so I wrote my own and then added some extra functionality as the cherry on top.<br>
+Although I wrote it for my own purposes, you are free to use it for your own.
 
 ## Before Use
 
-If you prefer that the order of elements in a Compound tag are preserved, you can add the `preserve_order` feature.
-
+If you prefer that the order of elements in a Compound tag are preserved, you can add the `preserve_order` feature.<br>
 If you would like to try out the extensions, you will need the `extensions` feature enabled.
 
 # Example Usage
