@@ -1,4 +1,4 @@
-### rustnbt
+## rustnbt
 NBT format library.
 
 This implements Minecraft's NBT format, then adds some tags to the format.
