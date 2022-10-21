@@ -3,6 +3,7 @@ pub(crate) mod family;
 pub mod io;
 pub(crate) mod table;
 pub mod tag;
+pub mod macros;
 
 use thiserror::Error as ThisError;
 
@@ -25,17 +26,17 @@ pub type Map = IndexMap<String, tag::Tag>;
 pub type Map = std::collections::HashMap<String, tag::Tag>;
 
 /// A const function that returns the number of bytes that size kibibytes would be.
-const fn kibibytes(size: usize) -> usize {
+pub const fn kibibytes(size: usize) -> usize {
     size << 10
 }
 
 /// A const function that returns the number of bytes that size mebibytes would be.
-const fn mebibytes(size: usize) -> usize {
+pub const fn mebibytes(size: usize) -> usize {
     size << 20
 }
 
 /// A const function that returns the number of bytes that size gibibytes would be.
-const fn gibibytes(size: usize) -> usize {
+pub const fn gibibytes(size: usize) -> usize {
     size << 30
 }
 
