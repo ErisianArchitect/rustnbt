@@ -18,7 +18,9 @@ use crate::{
         Primitive,
         NonBytePrimitive,
     },
-    tag_info_table
+    unwrap_block,
+    match_origin,
+    tag_info_table,
 };
 use std::{
     io::{
@@ -88,11 +90,12 @@ primitive_table![
 ];
 
 macro_rules! tag_io {
-    ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
+    ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path),*] [$($attr:meta),*])+) => {
 
         pub fn write_named_tag<W: Write>(writer: &mut W, tag: &Tag, name: &str) -> Result<usize, NbtError> {
             match tag {
                 $(
+                    $(#[$attr])*
                     Tag::$title(tag) => {
                         let id_size = TagID::$title.nbt_write(writer)?;
                         let key_size = name.nbt_write(writer)?;
@@ -111,8 +114,9 @@ macro_rules! tag_io {
             let name = String::nbt_read(reader)?;
             let tag = match id {
                 $(
+                    $(#[$attr])*
                     TagID::$title => {
-                        Tag::$title(<$type_>::nbt_read(reader)?)
+                        Tag::$title(<$type>::nbt_read(reader)?)
                     }
                 )+
                 _ => panic!("Impossible state."),
@@ -123,7 +127,10 @@ macro_rules! tag_io {
         impl NbtSize for Tag {
             fn nbt_size(&self) -> usize {
                 match self {
-                    $(Tag::$title(tag) => tag.nbt_size(),)+
+                    $(
+                        $(#[$attr])*
+                        Tag::$title(tag) => tag.nbt_size(),
+                    )+
                 }
             }
         }
@@ -131,7 +138,10 @@ macro_rules! tag_io {
         impl NbtSize for ListTag {
             fn nbt_size(&self) -> usize {
                 match self {
-                    $(ListTag::$title(list) => list.iter().map(|item| item.nbt_size()).sum::<usize>() + 5,)+
+                    $(
+                        $(#[$attr])*
+                        ListTag::$title(list) => list.iter().map(|item| item.nbt_size()).sum::<usize>() + 5,
+                    )+
                     ListTag::Empty => 5,
                 }
             }
@@ -142,6 +152,7 @@ macro_rules! tag_io {
                 let id = TagID::nbt_read(reader)?;
                 Ok(match id {
                     $(
+                        $(#[$attr])*
                         TagID::$title => {
                             let length = u32::nbt_read(reader)?;
                             ListTag::$title(
@@ -162,6 +173,7 @@ macro_rules! tag_io {
             fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize,NbtError> {
                 match self {
                     $(
+                        $(#[$attr])*
                         ListTag::$title(list) => {
                             TagID::$title.nbt_write(writer)?;
                             list.nbt_write(writer).map(|size| size + 1)
@@ -191,7 +203,8 @@ macro_rules! tag_io {
                     let name = String::nbt_read(reader)?;
                     let tag = match id {
                         $(
-                            TagID::$title => Tag::$title(<$type_>::nbt_read(reader)?),
+                            $(#[$attr])*
+                            TagID::$title => Tag::$title(<$type>::nbt_read(reader)?),
                         )+
                         TagID::Unsupported => return Err(NbtError::Unsupported),
                         TagID::End => panic!("This would not be a valid state, and should be impossible."),
@@ -219,6 +232,7 @@ macro_rules! tag_io {
             fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
                 match self {
                     $(
+                        $(#[$attr])*
                         Tag::$title(tag) => tag.nbt_write(writer),
                     )+
                 }
@@ -332,6 +346,7 @@ impl NbtRead for Vec<i8> {
     }
 }
 
+#[cfg(feature = "extensions")]
 impl NbtRead for Vec<u8> {
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
         let length = u32::nbt_read(reader)?;
@@ -403,6 +418,7 @@ impl NbtWrite for Vec<i8> {
 
 // This is a special implementation for writing Vec<u8>.
 // Profiling showed that this was an improvement, so it's what I'm going with.
+#[cfg(feature = "extensions")]
 impl NbtWrite for Vec<u8> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;

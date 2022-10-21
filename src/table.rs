@@ -1,6 +1,3 @@
-// The next line is the pattern to capture the lines of the table.
-// ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {}
-
 /// Macro used for accessing the tag info table which contains information
 /// about all the tag types, their tag name, their type, and the last column is for implementations.
 /// Implementations are applied to the type of the tag.
@@ -12,7 +9,17 @@
 /// Usage:
 /// ```no_run
 /// macro_rules! read_table {
-///     ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
+///     //             $id: The tag ID that is written to file to mark a type. These are distinct integer values.
+///     //                  Typically the ID will be a single 8-bit value, but as the extensions become more advanced, this may change.
+///     //          $title: This is the title of this NBT type. This is different from the type name, and is used as the names of 
+///     //                  variants in the TagID and Tag enums.
+///     //           $type: The type that the tag holds and serializes/deserializes.
+///     //        $subtype: The category that this tag type exists in. Either: scalar, array, or other.
+///     //         $origin: This value will either be "minecraft" or "extension".
+///     //                  This is used to control whether or not code is emitted depending on if the "extensions" feature is enabled.
+///     //           $impl: These are trait implementations that are applied to the types. These traits do not do anything besides act as markers.
+///     //           $attr: These are the attributes applied to code. This is so that we can enable or disable extensions.
+///     ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path),*] [$($attr:meta),*])+) => {
 ///         // generation code here.
 ///     }
 /// }
@@ -24,37 +31,74 @@
 macro_rules! tag_info_table {
     ($macro:ident) => {
         $macro! {
-            //id  Name                Type                [Implementations...]
-            0001  Byte                i8                  [Primitive]
-            0002  Short               i16                 [NonBytePrimitive]
-            0003  Int                 i32                 [NonBytePrimitive]
-            0004  Long                i64                 [NonBytePrimitive]
-            0005  Float               f32                 [NonBytePrimitive]
-            0006  Double              f64                 [NonBytePrimitive]
-            0007  ByteArray           Vec::<i8>           [NonByte]
-            0008  String              String              [NonByte]
-            0009  List                ListTag             [NonByte]
-            0010  Compound            Map                 [NonByte]
-            0011  IntArray            Vec::<i32>          [NonByte]
-            0012  LongArray           Vec::<i64>          [NonByte]
-            0013  UByte               u8                  [Primitive]
-            0014  UShort              u16                 [NonBytePrimitive]
-            0015  UInt                u32                 [NonBytePrimitive]
-            0016  ULong               u64                 [NonBytePrimitive]
-            0017  Bytes               Vec::<u8>           [NonByte]
-            0018  ShortArray          Vec::<i16>          [NonByte]
-            0019  UShortArray         Vec::<u16>          [NonByte]
-            0020  UIntArray           Vec::<u32>          [NonByte]
-            0021  ULongArray          Vec::<u64>          [NonByte]
-            0022  I128                i128                [NonBytePrimitive]
-            0023  U128                u128                [NonBytePrimitive]
-            0024  I128Array           Vec::<i128>         [NonByte]
-            0025  U128Array           Vec::<u128>         [NonByte]
-            0026  StringArray         Vec::<String>       [NonByte]
-            0027  FloatArray          Vec::<f32>          [NonByte]
-            0028  DoubleArray         Vec::<f64>          [NonByte]
+//ID    Title           Type            [Subtype]       [Origin   ]     [Implementations...]
+0001    Byte            i8              [scalar ]       [minecraft]     [Primitive]         []
+0002    Short           i16             [scalar ]       [minecraft]     [NonBytePrimitive]  []
+0003    Int             i32             [scalar ]       [minecraft]     [NonBytePrimitive]  []
+0004    Long            i64             [scalar ]       [minecraft]     [NonBytePrimitive]  []
+0005    Float           f32             [scalar ]       [minecraft]     [NonBytePrimitive]  []
+0006    Double          f64             [scalar ]       [minecraft]     [NonBytePrimitive]  []
+0007    ByteArray       Vec::<i8>       [array  ]       [minecraft]     [NonByte]           []
+0008    String          String          [other  ]       [minecraft]     [NonByte]           []
+0009    List            ListTag         [other  ]       [minecraft]     [NonByte]           []
+0010    Compound        Map             [other  ]       [minecraft]     [NonByte]           []
+0011    IntArray        Vec::<i32>      [array  ]       [minecraft]     [NonByte]           []
+0012    LongArray       Vec::<i64>      [array  ]       [minecraft]     [NonByte]           []
+0013    UByte           u8              [scalar ]       [extension]     [Primitive]         [cfg(feature = "extension")]
+0128    UShort          u16             [scalar ]       [extension]     [NonBytePrimitive]  [cfg(feature = "extension")]
+0129    UInt            u32             [scalar ]       [extension]     [NonBytePrimitive]  [cfg(feature = "extension")]
+0130    ULong           u64             [scalar ]       [extension]     [NonBytePrimitive]  [cfg(feature = "extension")]
+0131    Bytes           Vec::<u8>       [array  ]       [extension]     [NonByte]           [cfg(feature = "extension")]
+0132    ShortArray      Vec::<i16>      [array  ]       [extension]     [NonByte]           [cfg(feature = "extension")]
+0133    UShortArray     Vec::<u16>      [array  ]       [extension]     [NonByte]           [cfg(feature = "extension")]
+0134    UIntArray       Vec::<u32>      [array  ]       [extension]     [NonByte]           [cfg(feature = "extension")]
+0135    ULongArray      Vec::<u64>      [array  ]       [extension]     [NonByte]           [cfg(feature = "extension")]
+0136    I128            i128            [scalar ]       [extension]     [NonBytePrimitive]  [cfg(feature = "extension")]
+0137    U128            u128            [scalar ]       [extension]     [NonBytePrimitive]  [cfg(feature = "extension")]
+0138    I128Array       Vec::<i128>     [array  ]       [extension]     [NonByte]           [cfg(feature = "extension")]
+0139    U128Array       Vec::<u128>     [array  ]       [extension]     [NonByte]           [cfg(feature = "extension")]
+0140    StringArray     Vec::<String>   [array  ]       [extension]     [NonByte]           [cfg(feature = "extension")]
+0141    FloatArray      Vec::<f32>      [array  ]       [extension]     [NonByte]           [cfg(feature = "extension")]
+0142    DoubleArray     Vec::<f64>      [array  ]       [extension]     [NonByte]           [cfg(feature = "extension")]
         }
     };
 }
 
-pub(crate) use tag_info_table;
+#[macro_export]
+macro_rules! unwrap_block {
+    ({$($tok:tt)*}) => {
+        $($tok)*
+    };
+}
+
+#[macro_export]
+macro_rules! match_origin {
+    (extension;  $(extension => $extension:block)? $(minecraft => $minecraft:block)?) => {
+        $(
+            unwrap_block!{$extension}
+        )?
+    };
+    (minecraft; $(extension => $extension:block)? $(minecraft => $minecraft:block)?) => {
+        $(
+            unwrap_block!{$minecraft}
+        )?
+    };
+}
+
+#[macro_export]
+macro_rules! match_subtype {
+    (scalar; $(scalar = $scalar:block)? $(array = $array:block)? $(other = $other:block)?) => {
+        unwrap_block!{$scalar}
+    };
+    (array; $(scalar = $scalar:block)? $(array = $array:block)? $(other = $other:block)?) => {
+        unwrap_block!{$array}
+    };
+    (other; $(scalar = $scalar:block)? $(array = $array:block)? $(other = $other:block)?) => {
+        unwrap_block!{$other}
+    };
+}
+
+pub use match_subtype;
+pub use unwrap_block;
+pub use match_origin;
+pub use tag_info_table;

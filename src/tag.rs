@@ -39,12 +39,15 @@ pub trait DecodeNbt: Sized + EncodeNbt {
 /// This is where a majority of the generation for the code in this module happens.
 /// It utilizes the table in `\src\table.rs`.
 macro_rules! tag_data {
-    ($($id:literal $title:ident $type_:path $([$($impl:path),*])?)+) => {
+    ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path),*] [$($attr:meta),*])+) => {
         /// The NBT Tag enum.
         /// To see what types are supported, take a look at `table.rs`.
         #[derive(Clone, Debug)]
         pub enum Tag {
-            $($title($type_),)+
+            $(
+                $(#[$attr])*
+                $title($type),
+            )+
         }
 
         /// The TagID represents the NBT type ID of a Tag.
@@ -53,6 +56,7 @@ macro_rules! tag_data {
             End = 0,
             Unsupported = -1,
             $(
+                $(#[$attr])*
                 $title = $id,
             )+
         }
@@ -62,7 +66,10 @@ macro_rules! tag_data {
         pub enum ListTag {
             /// Represents a ListTag without any elements.
             Empty,
-            $($title(Vec<$type_>),)+
+            $(
+                $(#[$attr])*
+                $title(Vec<$type>),
+            )+
         }
 
         impl TagID {
@@ -70,6 +77,7 @@ macro_rules! tag_data {
             pub fn title(self) -> &'static str {
                 match self {
                     $(
+                        $(#[$attr])*
                         TagID::$title => stringify!($title),
                     )+
                     TagID::End => "End",
@@ -81,6 +89,7 @@ macro_rules! tag_data {
             pub fn name(self) -> &'static str {
                 match self {
                     $(
+                        $(#[$attr])*
                         TagID::$title => concat!("TAG_", stringify!($title)),
                     )+
                     TagID::End => "TAG_End",
@@ -93,7 +102,10 @@ macro_rules! tag_data {
             /// Returns the NBT type ID.
             pub fn id(&self) -> TagID {
                 match self {
-                    $(Tag::$title(_) => TagID::$title,)+
+                    $(
+                        $(#[$attr])*
+                        Tag::$title(_) => TagID::$title,
+                    )+
                 }
             }
         }
@@ -103,14 +115,20 @@ macro_rules! tag_data {
             pub fn id(&self) -> TagID {
                 match self {
                     ListTag::Empty => TagID::End,
-                    $(ListTag::$title(_) => TagID::$title,)+
+                    $(
+                        $(#[$attr])*
+                        ListTag::$title(_) => TagID::$title,
+                    )+
                 }
             }
 
             /// Returns the number of elements in the list.
             pub fn len(&self) -> usize {
                 match self {
-                    $(ListTag::$title(list) => list.len(),)+
+                    $(
+                        $(#[$attr])*
+                        ListTag::$title(list) => list.len(),
+                    )+
                     ListTag::Empty => 0,
                 }
             }
@@ -120,6 +138,7 @@ macro_rules! tag_data {
             fn from(value: T) -> Self {
                 match value.to_usize() {
                     $(
+                        $(#[$attr])*
                         Some($id) => TagID::$title,
                     )+
                     Some(0) => TagID::End,
@@ -129,56 +148,64 @@ macro_rules! tag_data {
         }
 
         $(
-            impl NbtType for $type_ {
+            $(#[$attr])*
+            impl NbtType for $type {
                 const ID: TagID = TagID::$title;
                 fn nbt(self) -> Tag {
                     self.into()
                 }
             }
 
-            impl EncodeNbt for $type_ {
+            $(#[$attr])*
+            impl EncodeNbt for $type {
                 fn encode_nbt(&self) -> Tag {
                     self.clone().into()
                 }
             }
 
-            impl DecodeNbt for $type_ {
+            $(#[$attr])*
+            impl DecodeNbt for $type {
                 type Error = String;
                 fn decode_nbt(tag: Tag) -> Result<Self, String> {
                     if let Tag::$title(tag) = tag {
                         return Ok(tag)
                     }
-                    Err(format!("Failed to convert from NBT to {}. Found: {}", stringify!($type_), tag.id()))
+                    Err(format!("Failed to convert from NBT to {}. Found: {}", stringify!($type), tag.id()))
                 }
             }
 
-            $($(
-                impl $impl for $type_ {}
-            )*)?
+            $(#[$attr])*
+            $(
+                impl $impl for $type {}
+            )*
 
-            impl From<$type_> for Tag {
-                fn from(value: $type_) -> Self {
+            $(#[$attr])*
+            impl From<$type> for Tag {
+                fn from(value: $type) -> Self {
                     Tag::$title(value)
                 }
             }
 
             /// From a vector to a ListTag.
-            impl From<Vec<$type_>> for ListTag {
-                fn from(value: Vec<$type_>) -> Self {
+            $(#[$attr])*
+            impl From<Vec<$type>> for ListTag {
+                fn from(value: Vec<$type>) -> Self {
                     ListTag::$title(value)
                 }
             }
 
             /// From a slice to a ListTag.
-            impl From<&[$type_]> for ListTag {
-                fn from(value: &[$type_]) -> Self {
+            $(#[$attr])*
+            impl From<&[$type]> for ListTag {
+                fn from(value: &[$type]) -> Self {
                     ListTag::$title(value.to_vec())
                 }
             }
 
-            impl TryFrom<Tag> for $type_ {
+            $(#[$attr])*
+            impl TryFrom<Tag> for $type {
                 type Error = ();
-                fn try_from(value: Tag) -> Result<$type_, ()> {
+                fn try_from(value: Tag) -> Result<$type, ()> {
                     if let Tag::$title(inner) = value {
                         return Ok(inner);
                     }
@@ -230,6 +257,7 @@ impl Tag {
         Tag::IntArray(it.into_iter().map(T::into).collect())
     }
 
+    #[cfg(feature = "extensions")]
     /// Create a Tag::ShortArray from the provided iterable.
     pub fn shortarray<T: Into<i16>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::ShortArray(it.into_iter().map(T::into).collect())
@@ -361,11 +389,18 @@ impl TryFrom<Tag> for bool {
             Tag::Int(inner) => !inner.is_zero(),
             Tag::Long(inner) => !inner.is_zero(),
             Tag::Float(inner) => !inner.is_zero(),
+            Tag::Double(inner) => !inner.is_zero(),
+            #[cfg(feature = "extensions")]
             Tag::UByte(inner) => !inner.is_zero(),
+            #[cfg(feature = "extensions")]
             Tag::UShort(inner) => !inner.is_zero(),
+            #[cfg(feature = "extensions")]
             Tag::UInt(inner) => !inner.is_zero(),
+            #[cfg(feature = "extensions")]
             Tag::ULong(inner) => !inner.is_zero(),
+            #[cfg(feature = "extensions")]
             Tag::I128(inner) => !inner.is_zero(),
+            #[cfg(feature = "extensions")]
             Tag::U128(inner) => !inner.is_zero(),
             // [table update]
             _ => return Err(()),
