@@ -21,23 +21,23 @@ This implements Minecraft's NBT format, then adds some tags to the format.
  010  Compound            Map
  011  IntArray            Vec::<i32>
  012  LongArray           Vec::<i64>
- 013  UByte               u8
 //==Extensions=========================
- 128  UShort              u16
- 129  UInt                u32
- 130  ULong               u64
- 131  Bytes               Vec::<u8>
- 132  ShortArray          Vec::<i16>
- 133  UShortArray         Vec::<u16>
- 134  UIntArray           Vec::<u32>
- 135  ULongArray          Vec::<u64>
- 136  I128                i128
- 137  U128                u128
- 138  I128Array           Vec::<i128>
- 139  U128Array           Vec::<u128>
- 140  StringArray         Vec::<String>
- 141  FloatArray          Vec::<f32>
- 142  DoubleArray         Vec::<f64>
+ 128  UByte               u8
+ 129  UShort              u16
+ 130  UInt                u32
+ 131  ULong               u64
+ 132  Bytes               Vec::<u8>
+ 133  ShortArray          Vec::<i16>
+ 134  UShortArray         Vec::<u16>
+ 135  UIntArray           Vec::<u32>
+ 136  ULongArray          Vec::<u64>
+ 137  I128                i128
+ 138  U128                u128
+ 139  I128Array           Vec::<i128>
+ 140  U128Array           Vec::<u128>
+ 141  StringArray         Vec::<String>
+ 142  FloatArray          Vec::<f32>
+ 143  DoubleArray         Vec::<f64>
 ```
 At some point in the future, I hope to write up a spec for the extensions, but it is a logical extension of Minecraft's NBT.
 
@@ -50,8 +50,9 @@ Although I wrote it for my own purposes, you are free to use it for your own.
 
 ## Before Use
 
-If you prefer that the order of elements in a Compound tag are preserved, you can add the `preserve_order` feature.<br>
-If you would like to try out the extensions, you will need the `extensions` feature enabled.
+If you prefer that the order of elements in a Compound tag are preserved, you can add the `preserve_order` feature.
+This feature will use [indexmap](https://docs.rs/indexmap/latest/indexmap/) to preserve order. This adds a small toll to the size of the Tag enum type, and also incurs a small performance penalty. Minecraft does not specify that tags must be in any particular order, so it is merely a matter of preference. This feature is off by default.<br>
+If you would like to try out the tag type extensions, you will need the `extensions` feature enabled. These are experimental extensions to Minecraft's NBT format, and I do not advise you to use it in production code. They were merely added into the library because I found that I could withut having to write a bunch of extra code to support them.
 
 # Example Usage
 
