@@ -12,7 +12,7 @@ macro_rules! compound {
     ($(($name:expr, $value:expr)),+) => {
         $crate::tag::Tag::Compound($crate::Map::from([
             $(
-                (std::string::String::from($name), $crate::tag::Tag::from($value)),
+                ($crate::list!(@literal_to_owned;$name), $crate::tag::Tag::from($value)),
             )+
         ]))
     };
@@ -29,21 +29,27 @@ macro_rules! compound {
 ///     "Four",
 ///     "Five"
 /// ];
-/// ``` 
+/// ```
 #[macro_export]
 macro_rules! list {
     ($($item:expr),+) => {
         $crate::tag::Tag::List($crate::tag::ListTag::from(std::vec![
             $(
-                ($item).to_owned(),
+                $crate::list!(@literal_to_owned;$item),
             )+
         ]))
     };
     ($value:expr; $repititions:expr) => {
-        $crate::tag::Tag::List($crate::tag::ListTag::from(std::vec![($value).to_owned(); $repititions]))
+        $crate::tag::Tag::List($crate::tag::ListTag::from(std::vec![$crate::list!(@literal_to_owned;$value); $repititions]))
     };
     () => {
         $crate::tag::Tag::List($crate::tag::ListTag::Empty);
+    };
+    (@literal_to_owned;$lit:literal) => {
+        $lit.to_owned()
+    };
+    (@literal_to_owned;$($other:tt)+) => {
+        $($other)+
     };
 }
 
