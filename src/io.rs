@@ -468,18 +468,18 @@ mod tests {
         let intarray = Tag::IntArray(vec![1,1,2,3,5,8,13,21,34,55,89,144]);
         let longarray = Tag::LongArray(vec![1,3,3,7, 1337, 13,37, 1,3,37,1,337, 133,7, 1,33,7,13,3,7]);
         let mut compound = Map::from([
-            ("Byte".to_owned(), byte.clone()),
-            ("Short".to_owned(), short.clone()),
-            ("Int".to_owned(), int.clone()),
-            ("Long".to_owned(), long.clone()),
-            ("Float".to_owned(), float.clone()),
-            ("Double".to_owned(), double.clone()),
-            ("ByteArray".to_owned(), bytearray.clone()),
-            ("String".to_owned(), string.clone()),
-            ("List".to_owned(), list.clone()),
+            ("Byte".to_owned(), byte),
+            ("Short".to_owned(), short),
+            ("Int".to_owned(), int),
+            ("Long".to_owned(), long),
+            ("Float".to_owned(), float),
+            ("Double".to_owned(), double),
+            ("ByteArray".to_owned(), bytearray),
+            ("String".to_owned(), string),
+            ("List".to_owned(), list),
             ("Empty List".to_owned(), Tag::List(ListTag::Empty)),
-            ("IntArray".to_owned(), intarray.clone()),
-            ("LongArray".to_owned(), longarray.clone()),
+            ("IntArray".to_owned(), intarray),
+            ("LongArray".to_owned(), longarray),
         ]);
         let mapclone = compound.clone();
         compound.insert("Compound".to_owned(), Tag::Compound(mapclone));
