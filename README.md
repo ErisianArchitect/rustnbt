@@ -95,6 +95,29 @@ let compound = Tag::Compound(Map::from([
     ("IntArray".to_owned(), intarray),
     ("LongArray".to_owned(), longarray),
 ]));
+// So let's say you want to create a compound, but you don't want to have to type String::from/to_string/to_owned/etc and Tag::from/into/etc.
+// Well the compound macro makes it easy to create compound tags without hurting your pwecious wittle fingy wingies.
+let compound = compound!(
+    ("One", 1),
+    ("Two".to_owned(), Tag::Byte(2)),
+    ("String", "Hello, world!")
+);
+// There is also a macro for Tag::List, but I don't feel like documenting it right now.
+// Oh, alright. Fine. I'll tell show you.
+let list_int = list!(
+    1,
+    2,
+    3,
+    4
+);
+// Unfortunately, it won't work with string literals ☹
+// Just kidding! Yes it will!
+let list_string = list!(
+    "One",
+    "Two",
+    "Three",
+    "Four"
+);
 ```
 
 ## Reading NBT from a file
@@ -112,12 +135,31 @@ let mut reader = BufReader::with_capacity(buffer_capacity, file);
 let root = NamedTag::nbt_read(reader.get_mut()).expect("Failed to read NBT.");
 ```
 
+### You can also access the tag through a reference:
+
+```rs
+let tag: &Tag = root.tag();
+let tag_mut: &mut Tag = root.tag_mut();
+```
+
+### Or if you need to, you can decompose the NamedTag into a tuple:
+
+```rs
+let (name, tag) = <(String, Tag)>::from(root);
+```
+
 ## Writing NBT to a file
 
 ```rs
 let mut file = File::create(path).expect("Failed to create the file.");
 // Restrict buffer capacity to 4mib.
-let buffer_capacity = self.root.tag().nbt_size().min(rustnbt::mebibytes(4));
+let root_size = root.nbt_size();
+let buffer_capacity = root_size.min(rustnbt::mebibytes(4));
 let mut writer = BufWriter::with_capacity(buffer_capacity, file);
 root.nbt_write(writer.get_mut()).expect("Failed to write NBT.");
 ```
+
+## Other stuff
+
+If for whatever reason you want to know how large a Tag is when serialized, you can get that information with `NbtSize::nbt_size`.
+This will tell you exactly how many bytes will be written when an object is written to a writer using `NbtWrite::nbt_write`.
