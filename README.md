@@ -41,13 +41,11 @@ This implements Minecraft's NBT format, then adds some tags to the format.
 ```
 At some point in the future, I hope to write up a spec for the extensions, but it is a logical extension of Minecraft's NBT.
 
-One thing to note is that the extensions types have IDs tht start at `128`. This is to attempt to prevent collisions with any potential future addition's to Minecraft's NBT structure.
-
-I have future plans to extend to library some more, but nothing I'm ready to put on paper.
+One thing to note is that the extension types have IDs that start at `128`. This is to attempt to prevent collisions with any potential future additions to Minecraft's NBT specification.
 
 ### Reason
 
-I wrote this library because I wanted to add something new to the mix. I needed a library that could serialize and deserialize NBT, and I didn't want to use someone else's library, so I wrote my own and then added some extra functionality as the cherry on top. A have a need for this library for a future project, which is what inspire it's creation, but you are free to use it for your own purposes.
+I wrote this library because I wanted to add something new to the mix. I needed a library that could serialize and deserialize NBT, and I didn't want to use someone else's library, so I wrote my own and then added some extra functionality as the cherry on top. A have a need for this library for a future project, which is what inspired its creation, but you are free to use it for your own purposes.
 
 ## Before Use
 
@@ -75,6 +73,7 @@ let longarray = Tag::LongArray(
         .map(|i| (0xFu64 << i) as i64 )
         .collect()
 );
+// There are alternate ways to create a Tag::Compound. There is also a macro. More on that later.
 let compound = Tag::Compound(Map::from([
     ("Byte".to_owned(), byte),
     ("Short".to_owned(), short),
@@ -96,4 +95,29 @@ let compound = Tag::Compound(Map::from([
     ("IntArray".to_owned(), intarray),
     ("LongArray".to_owned(), longarray),
 ]));
+```
+
+## Reading NBT from a file
+
+```rs
+let mut file = File::open(path).expect("Failed to open the file.");
+// Get the file size to find an appropriate buffer size.
+let size = file.metadata().expect("Failed to unwrap metadata.").len() as usize;
+// Max buffer size is 4mib
+let buffer_capacity = size.min(rustnbt::mebibytes(4));
+let mut reader = BufReader::with_capacity(buffer_capacity, file);
+// Attempted to read a NamedTag from the reader.
+// A NamedTag is a special type that holds a String name and a Tag.
+// This is used to read the format that most NBT is written to file.
+let root = NamedTag::nbt_read(reader.get_mut()).expect("Failed to read NBT.");
+```
+
+## Writing NBT to a file
+
+```rs
+let mut file = File::create(path).expect("Failed to create the file.");
+// Restrict buffer capacity to 4mib.
+let buffer_capacity = self.root.tag().nbt_size().min(rustnbt::mebibytes(4));
+let mut writer = BufWriter::with_capacity(buffer_capacity, file);
+root.nbt_write(writer.get_mut()).expect("Failed to write NBT.");
 ```
