@@ -45,7 +45,7 @@ One thing to note is that the extension types have IDs that start at `128`. This
 
 ### Reason
 
-I wrote this library because I needed a library that could serialize and deserialize NBT, and I didn't want to use someone else's library, so I wrote my own and then added some extra functionality as the cherry on top.<br>
+I needed a library that could serialize and deserialize NBT, and I didn't want to use someone else's library, so I wrote my own and then added some extra functionality as the cherry on top.<br>
 Although I wrote it for my own purposes, you are free to use it for your own.
 
 ## Before Use
