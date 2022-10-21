@@ -106,7 +106,7 @@ let size = file.metadata().expect("Failed to unwrap metadata.").len() as usize;
 // Max buffer size is 4mib
 let buffer_capacity = size.min(rustnbt::mebibytes(4));
 let mut reader = BufReader::with_capacity(buffer_capacity, file);
-// Attempted to read a NamedTag from the reader.
+// Attempts to read a NamedTag from the reader.
 // A NamedTag is a special type that holds a String name and a Tag.
 // This is used to read the format that most NBT is written to file.
 let root = NamedTag::nbt_read(reader.get_mut()).expect("Failed to read NBT.");
