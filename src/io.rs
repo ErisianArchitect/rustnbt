@@ -42,14 +42,38 @@ pub trait NbtSize {
     fn nbt_size(&self) -> usize;
 }
 
+pub trait ReadNbt {
+    /// Read a NamedTag from the reader.
+    fn read_nbt(&mut self) -> Result<NamedTag, NbtError>;
+}
+
+impl<Reader: Read> ReadNbt for Reader {
+    /// Read a NamedTag from the reader.
+    fn read_nbt(&mut self) -> Result<NamedTag, NbtError> {
+        NamedTag::nbt_read(self)
+    }
+}
+
+pub trait WriteNbt {
+    /// Write a NamedTag to the writer.
+    fn write_nbt(&mut self, value: &NamedTag) -> Result<usize, NbtError>;
+}
+
+impl<Writer: Write> WriteNbt for Writer {
+    /// Write a NamedTag to the writer.
+    fn write_nbt(&mut self, value: &NamedTag) -> Result<usize, NbtError> {
+        value.nbt_write(self)
+    }
+}
+
 /// A trait for reading values from readers.
-pub trait NbtRead: Sized {
+trait NbtRead: Sized {
     /// Attempt to read a value from a reader.
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError>;
 }
 
 /// A trait for writing values to writers.
-pub trait NbtWrite {
+trait NbtWrite {
     /// Write a value to a writer.
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError>;
 }
