@@ -18,24 +18,34 @@ pub enum NbtError {
     Unsupported,
 }
 
+// indexmap preserves the insertion order of elements.
+// Minecraft does not care what order elements are in, one thing to note
+// is that without having insertion order preserved, the order of elements
+// in a compound is indeterminable.
+// Preserving the order ensures isomorphism between input and output.
 #[cfg(feature = "preserve_order")]
 use indexmap::IndexMap;
 #[cfg(feature = "preserve_order")]
+/// The mapping type used for Tag::Compound.
 pub type Map = IndexMap<String, tag::Tag>;
+// Fallback to HashMap.
 #[cfg(not(feature = "preserve_order"))]
+/// The mapping type used for Tag::Compound.
 pub type Map = std::collections::HashMap<String, tag::Tag>;
 
-/// A const function that returns the number of bytes that size kibibytes would be.
+// The following three functions are to make it easier
+// to create buffers of appropriate sizes.
+/// A const function for unit conversion of kibibytes to bytes
 pub const fn kibibytes(size: usize) -> usize {
     size << 10
 }
 
-/// A const function that returns the number of bytes that size mebibytes would be.
+/// A const function for unit conversion of mebibytes to bytes
 pub const fn mebibytes(size: usize) -> usize {
     size << 20
 }
 
-/// A const function that returns the number of bytes that size gibibytes would be.
+/// A const function for unit conversion of gibibytes to bytes
 pub const fn gibibytes(size: usize) -> usize {
     size << 30
 }
