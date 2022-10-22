@@ -163,7 +163,7 @@ let mut file = File::create(path).expect("Failed to create the file.");
 let root_size = root.nbt_size();
 let buffer_capacity = root_size.min(rustnbt::mebibytes(4));
 let mut writer = BufWriter::with_capacity(buffer_capacity, file);
-let bytes_written = writer.write_nbt(root).expect("Failed to write NBT.");
+let bytes_written = writer.write_nbt(&root).expect("Failed to write NBT.");
 println!("Wrote {} bytes.", bytes_written);
 ```
 
