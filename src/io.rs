@@ -42,38 +42,38 @@ pub trait NbtSize {
     fn nbt_size(&self) -> usize;
 }
 
-pub trait ReadNbt {
+pub trait ReadNbt<T: NbtRead>: Read {
     /// Read a NamedTag from the reader.
-    fn read_nbt(&mut self) -> Result<NamedTag, NbtError>;
+    fn read_nbt(&mut self) -> Result<T, NbtError>;
 }
 
-impl<Reader: Read> ReadNbt for Reader {
+impl<Reader: Read, T: NbtRead> ReadNbt<T> for Reader {
     /// Read a NamedTag from the reader.
-    fn read_nbt(&mut self) -> Result<NamedTag, NbtError> {
-        NamedTag::nbt_read(self)
+    fn read_nbt(&mut self) -> Result<T, NbtError> {
+        T::nbt_read(self)
     }
 }
 
-pub trait WriteNbt {
+pub trait WriteNbt<T: NbtWrite>: Write {
     /// Write a NamedTag to the writer.
-    fn write_nbt(&mut self, value: &NamedTag) -> Result<usize, NbtError>;
+    fn write_nbt(&mut self, value: &T) -> Result<usize, NbtError>;
 }
 
-impl<Writer: Write> WriteNbt for Writer {
+impl<Writer: Write, T: NbtWrite> WriteNbt<T> for Writer {
     /// Write a NamedTag to the writer.
-    fn write_nbt(&mut self, value: &NamedTag) -> Result<usize, NbtError> {
+    fn write_nbt(&mut self, value: &T) -> Result<usize, NbtError> {
         value.nbt_write(self)
     }
 }
 
 /// A trait for reading values from readers.
-trait NbtRead: Sized {
+pub trait NbtRead: Sized {
     /// Attempt to read a value from a reader.
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError>;
 }
 
 /// A trait for writing values to writers.
-trait NbtWrite {
+pub trait NbtWrite {
     /// Write a value to a writer.
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError>;
 }
@@ -321,7 +321,7 @@ impl NbtSize for Vec<String> {
         self.iter()
             .map(|value| value.nbt_size())
             .sum::<usize>()
-            + 4usize
+            + 4 // +4 for u32 size
     }
 }
 
@@ -330,7 +330,7 @@ impl NbtSize for Map {
         self.iter()
             .map(|(name, tag)| name.nbt_size() + tag.nbt_size() + 1)
             .sum::<usize>()
-            + 1
+            + 1 // The +1 represents the TagID::End that marks the end of the map.
     }
 }
 
@@ -339,7 +339,7 @@ impl NbtSize for Vec<Map> {
         self.iter()
             .map(|value| value.nbt_size())
             .sum::<usize>()
-            + 4
+            + 4 // +4 for u32 size
     }
 }
 
@@ -348,7 +348,15 @@ impl NbtSize for Vec<ListTag> {
         self.iter()
             .map(|value| value.nbt_size())
             .sum::<usize>()
-            + 4
+            + 4 // +4 for u32 size
+    }
+}
+
+// For reading Named Tag straight into a Tuple.
+impl<S: From<String>, T: From<Tag>> NbtRead for (S, T) {
+    fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
+        let (name, tag) = read_named_tag(reader)?;
+        Ok((S::from(name), T::from(tag)))
     }
 }
 
@@ -392,6 +400,12 @@ impl NbtRead for String {
 impl NbtRead for TagID {
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
         Ok(TagID::from(u8::nbt_read(reader)?))
+    }
+}
+
+impl<S: AsRef<str>> NbtWrite for (S, Tag) {
+    fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
+        write_named_tag(writer, &self.1, self.0.as_ref())
     }
 }
 
