@@ -225,6 +225,84 @@ pub struct NamedTag {
     pub(crate) tag: Tag,
 }
 
+impl NamedTag {
+    /// Creates a new NamedTag that has a blank name (`String::default()`)
+    pub fn new<T>(tag: T) -> Self
+    where
+        T: Into<Tag>,
+    {
+        Self {
+            name: String::default(),
+            tag: tag.into(),
+        }
+    }
+
+    /// Creates a new NamedTag with a name.
+    pub fn with_name<S, T>(name: S, tag: T) -> Self
+    where
+        S: Into<String>,
+        T: Into<Tag> {
+            Self {
+                name: name.into(),
+                tag: tag.into(),
+            }
+    }
+
+    /// Get the name of the NamedTag.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Borrow the NamedTag's tag value.
+    pub fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    /// Mutably borrow the NamedTag's tag value.
+    pub fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
+
+    /// Irreversibly take the [Tag] from the [NamedTag], ignoring the name.
+    pub fn take_tag(self) -> Tag {
+        self.tag
+    }
+
+    /// Set the NamedTag's tag value.
+    pub fn set_tag<T: Into<Tag>>(&mut self, tag: T) {
+        self.tag = tag.into();
+    }
+
+    /// Set the NamedTag's name.
+    pub fn set_name<T: Into<String>>(&mut self, name: T) {
+        self.name = name.into();
+    }
+}
+
+/// Creates a NamedTag from (Into<String>, Into<Tag>)
+impl<S, T> From<(S,T)> for NamedTag
+where
+    S: Into<String>,
+    T: Into<Tag>
+{
+    /// Convert to a NamedTag from a Tuple.
+    fn from(value: (S, T)) -> Self {
+        Self {
+            name: value.0.into(),
+            tag: value.1.into(),
+        }
+    }
+}
+
+impl<S> From<NamedTag> for (S,Tag)
+where
+    S: From<String> {
+    fn from(value: NamedTag) -> Self {
+        (S::from(value.name), value.tag)
+    }
+    
+}
+
 impl TagID {
     /// Returns this TagID as a usize.
     pub fn value(self) -> usize {
@@ -296,55 +374,6 @@ impl Tag {
     }
 }
 
-impl NamedTag {
-    /// Creates a new NamedTag that has a blank name (`String::default()`)
-    pub fn new<T>(tag: T) -> Self
-    where
-        T: Into<Tag>,
-    {
-        Self {
-            name: String::default(),
-            tag: tag.into(),
-        }
-    }
-
-    /// Creates a new NamedTag with a name.
-    pub fn with_name<S, T>(name: S, tag: T) -> Self
-    where
-        S: Into<String>,
-        T: Into<Tag> {
-            Self {
-                name: name.into(),
-                tag: tag.into(),
-            }
-    }
-
-    /// Get the name of the NamedTag.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Borrow the NamedTag's tag value.
-    pub fn tag(&self) -> &Tag {
-        &self.tag
-    }
-
-    /// Mutably borrow the NamedTag's tag value.
-    pub fn tag_mut(&mut self) -> &mut Tag {
-        &mut self.tag
-    }
-
-    /// Set the NamedTag's tag value.
-    pub fn set_tag<T: Into<Tag>>(&mut self, tag: T) {
-        self.tag = tag.into();
-    }
-
-    /// Set the NamedTag's name.
-    pub fn set_name<T: Into<String>>(&mut self, name: T) {
-        self.name = name.into();
-    }
-}
-
 /// Creates a Tag::Byte from a boolean value.
 impl From<bool> for Tag {
     /// Create a Tag::Byte from a boolean value.
@@ -358,21 +387,6 @@ impl From<&str> for Tag {
     /// Creates a [Tag::String].
     fn from(value: &str) -> Self {
         Tag::String(String::from(value))
-    }
-}
-
-/// Creates a NamedTag from (Into<String>, Into<Tag>)
-impl<S, T> From<(S,T)> for NamedTag
-where
-    S: Into<String>,
-    T: Into<Tag>
-{
-    /// Convert to a NamedTag from a Tuple.
-    fn from(value: (S, T)) -> Self {
-        Self {
-            name: value.0.into(),
-            tag: value.1.into(),
-        }
     }
 }
 
@@ -406,15 +420,6 @@ impl TryFrom<Tag> for bool {
             _ => return Err(()),
         })
     }
-}
-
-impl<S> From<NamedTag> for (S,Tag)
-where
-    S: From<String> {
-    fn from(value: NamedTag) -> Self {
-        (S::from(value.name), value.tag)
-    }
-    
 }
 
 impl Display for TagID {
