@@ -135,14 +135,18 @@ let mut reader = BufReader::with_capacity(buffer_capacity, file);
 // Attempts to read a NamedTag from the reader.
 // A NamedTag is a special type that holds a String name and a Tag.
 // This is used to read the format that most NBT is written to file.
-let root = NamedTag::nbt_read(reader.get_mut()).expect("Failed to read NBT.");
+let root = reader.read_nbt().expect("Failed to read NBT.");
 ```
 
 ### You can also access the tag through a reference:
 
 ```rs
-let tag: &Tag = root.tag();
-let tag_mut: &mut Tag = root.tag_mut();
+// Get a refernece to the tag
+let tag_ref: &Tag = root.tag();
+// Get a mutable reference to the tag
+let tag_ref_mut: &mut Tag = root.tag_mut();
+// Get the tag itself, consuming the NamedTag in the process
+let tag: Tag = root.take_tag();
 ```
 
 ### Or if you need to, you can decompose the NamedTag into a tuple:
@@ -159,11 +163,12 @@ let mut file = File::create(path).expect("Failed to create the file.");
 let root_size = root.nbt_size();
 let buffer_capacity = root_size.min(rustnbt::mebibytes(4));
 let mut writer = BufWriter::with_capacity(buffer_capacity, file);
-root.nbt_write(writer.get_mut()).expect("Failed to write NBT.");
+let bytes_written = writer.write_nbt(root).expect("Failed to write NBT.");
+println!("Wrote {} bytes.", bytes_written);
 ```
 
 ## Other stuff
 
 If for whatever reason you want to know how large a Tag is when serialized, you can get that information with `NbtSize::nbt_size`.
 `NbtSize` is a trait that is implemented for all NBT tag types, as well as for `Tag` and `NamedTag`.
-This will tell you exactly how many bytes will be written when an object is written to a writer using `NbtWrite::nbt_write`.
+This will tell you exactly how many bytes will be written when an NBT object is written to a writer.
