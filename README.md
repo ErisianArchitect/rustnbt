@@ -165,4 +165,5 @@ root.nbt_write(writer.get_mut()).expect("Failed to write NBT.");
 ## Other stuff
 
 If for whatever reason you want to know how large a Tag is when serialized, you can get that information with `NbtSize::nbt_size`.
+`NbtSize` is a trait that is implemented for all NBT tag types, as well as for `Tag` and `NamedTag`.
 This will tell you exactly how many bytes will be written when an object is written to a writer using `NbtWrite::nbt_write`.
