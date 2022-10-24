@@ -57,6 +57,11 @@ If you prefer that the order of elements in a Compound tag are preserved, you ca
 This feature will use [indexmap](https://docs.rs/indexmap/latest/indexmap/) to preserve order. This adds a small toll to the size of the Tag enum type, and also incurs a small performance penalty. Minecraft does not specify that tags must be in any particular order, so it is merely a matter of preference. This feature is off by default.<br>
 If you would like to try out the tag type extensions, you will need the `extensions` feature enabled. These are experimental extensions to Minecraft's NBT format, and I do not advise you to use it in production code. They were merely added into the library because I found that I could without having to write a bunch of extra code to support them.
 
+### WARNING!
+
+Currently, there is no functionality to verify the integrity of NBT while reading it. The algorithm just trusts that the NBT is not malformed. This means that the malformed NBT could theoretically tell your program to allocate 2<sup>32</sup>*8 bytes, which may not be favorable.
+I plan on adding a function to verify the integrity of NBT before reading it, but for right now you may want to write your own verification methods for deserializing untrusted NBT. For the purpose that I plan on using this library, verification is not yet a necessity, so I plan on adding it in the future when it becomes a necessity.
+
 # Example Usage
 
 ## Creating Tags.
