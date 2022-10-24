@@ -13,22 +13,12 @@ use crate::{
         ListTag,
         NamedTag,
     },
-    family::{
-        NonByte,
-        Primitive,
-        NonBytePrimitive,
-    },
+    family::*,
     tag_info_table,
 };
 use std::{
     io::{
-        BufReader,
-        BufWriter,
-        Cursor,
-        Error,
         Read,
-        Seek,
-        SeekFrom,
         Write,
     },
     ops::Mul,
@@ -523,7 +513,7 @@ mod tests {
     fn write_test() -> Result<(),NbtError> {
         let tag = test_tag();
         let named = NamedTag::with_name("The quick brown fox jumps over the lazy dog.", tag);
-        let mut writer = BufWriter::new(vec![0u8; named.nbt_size()]);
+        let mut writer = std::io::BufWriter::new(vec![0u8; named.nbt_size()]);
         println!("Size: {}", named.nbt_size());
         let size = named.nbt_write(&mut writer)?;
         println!("Written: {}", size);
@@ -533,7 +523,7 @@ mod tests {
     #[test]
     fn read_test() -> Result<(), NbtError> {
         let file = include_bytes!("../test_nbt.nbt");
-        let mut reader = BufReader::new(file.as_slice());
+        let mut reader = std::io::BufReader::new(file.as_slice());
         let named = NamedTag::nbt_read(&mut reader)?;
         println!("Tag: {:#?}", named);
         Ok(())
