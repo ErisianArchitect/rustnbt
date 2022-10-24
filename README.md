@@ -1,6 +1,9 @@
 # rustnbt
 
-NBT format library.
+Minecraft NBT format library.
+
+https://wiki.vg/NBT <br>
+https://minecraft.fandom.com/wiki/NBT_format
 
 This implements Minecraft's NBT format, then adds some tags to the format.
 
