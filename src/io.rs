@@ -18,8 +18,6 @@ use crate::{
         Primitive,
         NonBytePrimitive,
     },
-    unwrap_block,
-    match_origin,
     tag_info_table,
 };
 use std::{

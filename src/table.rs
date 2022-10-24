@@ -64,41 +64,4 @@ macro_rules! tag_info_table {
     };
 }
 
-#[macro_export]
-macro_rules! unwrap_block {
-    ({$($tok:tt)*}) => {
-        $($tok)*
-    };
-}
-
-#[macro_export]
-macro_rules! match_origin {
-    (extension;  $(extension => $extension:block)? $(minecraft => $minecraft:block)?) => {
-        $(
-            $crate::unwrap_block!{$extension}
-        )?
-    };
-    (minecraft; $(extension => $extension:block)? $(minecraft => $minecraft:block)?) => {
-        $(
-            $crate::unwrap_block!{$minecraft}
-        )?
-    };
-}
-
-#[macro_export]
-macro_rules! match_subtype {
-    (scalar; $(scalar = $scalar:block)? $(array = $array:block)? $(other = $other:block)?) => {
-        $crate::unwrap_block!{$scalar}
-    };
-    (array; $(scalar = $scalar:block)? $(array = $array:block)? $(other = $other:block)?) => {
-        $crate::unwrap_block!{$array}
-    };
-    (other; $(scalar = $scalar:block)? $(array = $array:block)? $(other = $other:block)?) => {
-        $crate::unwrap_block!{$other}
-    };
-}
-
-pub use match_subtype;
-pub use unwrap_block;
-pub use match_origin;
 pub use tag_info_table;
