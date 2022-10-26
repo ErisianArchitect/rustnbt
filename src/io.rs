@@ -24,43 +24,56 @@ use std::{
     ops::Mul,
 };
 
-/// Trait that gives the serialization size of various values.
+/// Trait that gives the serialization size in bytes of various values.
+/// This size may include a 2 or 4 byte length, or a single byte end marker in addition to the payload.
 pub trait NbtSize {
     /// Returns the serialization size of this data.
     fn nbt_size(&self) -> usize;
 }
 
+/// Trait applied to all readers for NBT extensions.
 pub trait ReadNbt<T: NbtRead>: Read {
-    /// Read a NamedTag from the reader.
+    /// Read NBT (anything that implements NbtRead).
     fn read_nbt(&mut self) -> Result<T, NbtError>;
 }
 
 impl<Reader: Read, T: NbtRead> ReadNbt<T> for Reader {
-    /// Read a NamedTag from the reader.
+    /// Read NBT (anything that implements NbtRead).
     fn read_nbt(&mut self) -> Result<T, NbtError> {
         T::nbt_read(self)
     }
 }
 
+/// Trait applied to all writers for NBT extensions.
 pub trait WriteNbt<T: NbtWrite>: Write {
-    /// Write a NamedTag to the writer.
+    /// Write NBT (anything that implements NbtWrite).
     fn write_nbt(&mut self, value: &T) -> Result<usize, NbtError>;
 }
 
 impl<Writer: Write, T: NbtWrite> WriteNbt<T> for Writer {
-    /// Write a NamedTag to the writer.
+    /// Write NBT (anything that implements NbtWrite).
     fn write_nbt(&mut self, value: &T) -> Result<usize, NbtError> {
         value.nbt_write(self)
     }
 }
 
 /// A trait for reading values from readers.
+/// Minecraft's NBT format demands that values are read in Big-Endian byteorder, so
+/// that means that it is pertinent to implement custom readers for those types.
+/// By applying [NbtRead] to all the types that can be represented with NBT, we
+/// are able to deserialize NBT data with greater ease.
+/// Although this trait is public, it is not intended for public API usage.
 pub trait NbtRead: Sized {
     /// Attempt to read a value from a reader.
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError>;
 }
 
 /// A trait for writing values to writers.
+/// Minecraft's NBT format demands that values are read in Big-Endian byteorder, so
+/// that means that it is pertinent to implement custom writers for those types.
+/// By applying [NbtWrite] to all types that can be represented with NBT, we
+/// are able to deserialize NBT data with greater ease.
+/// Although this trait is public, is is not intended for public API usage.
 pub trait NbtWrite {
     /// Write a value to a writer.
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError>;
@@ -99,15 +112,18 @@ primitive_table![
 ];
 
 macro_rules! tag_io {
-    ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path),*] [$($attr:meta),*])+) => {
-
-        pub fn write_named_tag<W: Write>(writer: &mut W, tag: &Tag, name: &str) -> Result<usize, NbtError> {
+    ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path)?] [$($attr:meta),*])+) => {
+        /// This function is the bread and butter of serialization of NBT data.
+        /// This function will write the Tag's ID, the provided Tag Name, and then the tag itself.
+        /// This is necessary for writing Compound (HashMap) tags.
+        /// This is also how the root tag of an NBT file is written.
+        pub fn write_named_tag<W: Write, S: AsRef<str>>(writer: &mut W, tag: &Tag, name: S) -> Result<usize, NbtError> {
             match tag {
                 $(
                     $(#[$attr])*
                     Tag::$title(tag) => {
                         let id_size = TagID::$title.nbt_write(writer)?;
-                        let key_size = name.nbt_write(writer)?;
+                        let key_size = name.as_ref().nbt_write(writer)?;
                         let tag_size = tag.nbt_write(writer)?;
                         Ok(id_size + key_size + tag_size)
                     }
@@ -115,6 +131,13 @@ macro_rules! tag_io {
             }
         }
 
+        /// Like write_named_tag, this function is crucial to deserialization of NBT data.
+        /// This function will first read a byte representing the Tag ID.
+        /// It will then verify that the Tag ID is valid (can't be 0, and must match one of the Tag IDs.).
+        /// After verifying that the Tag ID is valid, it will read the name of the tag.
+        /// After reading the name, it will read the tag itself, using the Tag ID that was read to
+        /// determine which Tag type to read. Typically this will be a Compound tag (ID: 10), or a List tag (ID: 9).
+        /// There is no restriction on what type this tag can be, though.
         pub fn read_named_tag<R: Read>(reader: &mut R) -> Result<(String, Tag), NbtError> {
             let id = TagID::nbt_read(reader)?;
             if matches!(id, TagID::End | TagID::Unsupported) {
@@ -425,7 +448,7 @@ impl NbtWrite for String {
 impl<T: NbtWrite + NonByte> NbtWrite for Vec<T> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
-        write_array(writer, self.as_slice()).map(|size| size + 4)
+        write_array(writer, self.as_slice()).map(|size| size + 4) // The `+ 4` is to add the size of the u32 length
     }
 }
 
@@ -435,7 +458,7 @@ impl NbtWrite for Vec<i8> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
         let u8slice: &[u8] = bytemuck::cast_slice(self.as_slice());
-        Ok(write_bytes(writer, u8slice)? + 4)
+        Ok(write_bytes(writer, u8slice)? + 4) // The `+ 4` is to add the size of the u32 length
     }
 }
 
@@ -445,7 +468,7 @@ impl NbtWrite for Vec<i8> {
 impl NbtWrite for Vec<u8> {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
         (self.len() as u32).nbt_write(writer)?;
-        Ok(write_bytes(writer, &self)? + 4)
+        Ok(write_bytes(writer, &self)? + 4) // The `+ 4` is to add the size of the u32 length
     }
 }
 
@@ -468,7 +491,7 @@ impl NbtWrite for Map {
 
 impl NbtSize for NamedTag {
     fn nbt_size(&self) -> usize {
-        self.name.nbt_size() + self.tag.nbt_size() + 1
+        self.name.nbt_size() + self.tag.nbt_size() + 1 // The `+ 1` is to add the size of the 0x00 byte for the end tag.
     }
 }
 
