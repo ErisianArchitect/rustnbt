@@ -15,7 +15,9 @@ pub enum NbtError {
     #[error("Failed to read UTF-8 string.")]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
     #[error("Unsupported Tag ID.")]
-    Unsupported,
+    Unsupported{ id_encountered: u8 },
+    #[error("Encountered the End tag ID marker.")]
+    End,
 }
 
 // indexmap preserves the insertion order of elements.

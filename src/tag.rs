@@ -42,10 +42,10 @@ pub trait DecodeNbt: Sized {
 /// It utilizes the table in `\src\table.rs`.
 macro_rules! tag_data {
     ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path)?] [$($attr:meta)?])+) => {
-        #[doc = r#"
+        #[doc = "
         The NBT Tag enum.<br>
         To see what types are supported, take a look at the table in table.rs.
-        "#]
+        "]
         #[derive(Clone, Debug)]
         pub enum Tag {
             $(
@@ -61,17 +61,6 @@ macro_rules! tag_data {
         #[doc = "The NBT tag type ID."]
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
         pub enum TagID {
-            #[doc = "
-            Used to mark the end of a [Tag::Compound].<br>
-            This is not an actual tag type ID, but is included as it is one of the potential
-            values that can be written or read in the place that the other IDs can be written or read.
-            "]
-            End = 0,
-            #[doc = "
-            This variant is meant to represent any ID that is encountered that is not recognized, and
-            as such is likely part of an unsupported format.
-            "]
-            Unsupported = -1,
             $(
                 $(#[$attr])*
                 $title = $id,
@@ -97,8 +86,6 @@ macro_rules! tag_data {
                         $(#[$attr])*
                         TagID::$title => stringify!($title),
                     )+
-                    TagID::End => "End",
-                    TagID::Unsupported => "Unsupported",
                 }
             }
 
@@ -109,8 +96,6 @@ macro_rules! tag_data {
                         $(#[$attr])*
                         TagID::$title => concat!("TAG_", stringify!($title)),
                     )+
-                    TagID::End => "TAG_End",
-                    TagID::Unsupported => "TAG_Unsupported",
                 }
             }
         }
@@ -131,7 +116,7 @@ macro_rules! tag_data {
             #[doc = "Returns the list type ID."]
             pub fn id(&self) -> TagID {
                 match self {
-                    ListTag::Empty => TagID::End,
+                    ListTag::Empty => TagID::Byte,
                     $(
                         $(#[$attr])*
                         ListTag::$title(_) => TagID::$title,
@@ -154,30 +139,16 @@ macro_rules! tag_data {
             }
         }
 
-        #[doc = "
-        Allows for creating a TagID from a Numeric value.
-        ```
-        let id = TagID::from(1);
-        assert!(matches!(id, TagID::Byte));
-        ```
-        "]
-        impl<T: ToPrimitive> From<T> for TagID {
-            #[doc = "
-            Creates a TagID from a Numeric value.<br>
-            Returns [TagID::Unsupported] for unrecognized values.
-            ```
-            let id = TagID::from(1);
-            assert!(matches!(id, TagID::Byte));
-            ```
-            "]
-            fn from(value: T) -> Self {
-                match value.to_isize() {
+        impl TryFrom<u8> for TagID {
+            type Error = $crate::NbtError;
+            fn try_from(value: u8) -> Result<Self,Self::Error> {
+                match value {
                     $(
                         $(#[$attr])*
-                        Some($id) => TagID::$title,
+                        $id => Ok(TagID::$title),
                     )+
-                    Some(0) => TagID::End,
-                    _ => TagID::Unsupported,
+                    0 => Err($crate::NbtError::End),
+                    other => Err($crate::NbtError::Unsupported { id_encountered: other }),
                 }
             }
         }
@@ -197,7 +168,7 @@ macro_rules! tag_data {
             It's likely that you may want to keep the old value around rather
             than consuming it and converting it to NBT. This is implemented for reference
             types for that exact scenario.
-            "#]
+            "]
             $(#[$attr])*
             impl EncodeNbt for &$type {
                 #[doc = "Encodes self as an NBT tag."]

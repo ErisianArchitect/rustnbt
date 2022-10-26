@@ -140,9 +140,6 @@ macro_rules! tag_io {
         /// There is no restriction on what type this tag can be, though.
         pub fn read_named_tag<R: Read>(reader: &mut R) -> Result<(String, Tag), NbtError> {
             let id = TagID::nbt_read(reader)?;
-            if matches!(id, TagID::End | TagID::Unsupported) {
-                return Err(NbtError::Unsupported);
-            }
             let name = String::nbt_read(reader)?;
             let tag = match id {
                 $(
@@ -181,23 +178,25 @@ macro_rules! tag_io {
 
         impl NbtRead for ListTag {
             fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
-                let id = TagID::nbt_read(reader)?;
-                Ok(match id {
+                let id = TagID::nbt_read(reader);
+                match id {
                     $(
                         $(#[$attr])*
-                        TagID::$title => {
+                        Ok(TagID::$title) => {
                             let length = u32::nbt_read(reader)?;
-                            ListTag::$title(
+                            Ok(ListTag::$title(
                                 read_array(reader, length as usize)?
-                            )
-                        }
+                            ))
+                        },
                     )+
-                    TagID::End => {
+                    Err($crate::NbtError::End) => {
                         u32::nbt_read(reader)?;
-                        ListTag::Empty
+                        Ok(ListTag::Empty)
                     },
-                    TagID::Unsupported => return Err(NbtError::Unsupported),
-                })
+                    Err(err) => {
+                        Err(err)
+                    },
+                }
             }
         }
 
@@ -212,7 +211,7 @@ macro_rules! tag_io {
                         }
                     )+
                     ListTag::Empty => {
-                        TagID::End.nbt_write(writer)?;
+                        0u8.nbt_write(writer)?;
                         0u32.nbt_write(writer)?;
                         Ok(5)
                     },
@@ -230,19 +229,18 @@ macro_rules! tag_io {
                 //     read next id
                 //     repeat until id is End or Unsupported
                 let mut map = Map::new();
-                let mut id = TagID::nbt_read(reader)?;
-                while id != TagID::End {
+                let mut id = TagID::nbt_read(reader);
+                while !matches!(id, Err($crate::NbtError::End)) {
                     let name = String::nbt_read(reader)?;
                     let tag = match id {
                         $(
                             $(#[$attr])*
-                            TagID::$title => Tag::$title(<$type>::nbt_read(reader)?),
+                            Ok(TagID::$title) => Tag::$title(<$type>::nbt_read(reader)?),
                         )+
-                        TagID::Unsupported => return Err(NbtError::Unsupported),
-                        TagID::End => panic!("This would not be a valid state, and should be impossible."),
+                        Err(err) => return Err(err),
                     };
                     map.insert(name, tag);
-                    id = TagID::nbt_read(reader)?;
+                    id = TagID::nbt_read(reader);
                 }
                 Ok(map)
             }
@@ -410,7 +408,7 @@ impl NbtRead for String {
 
 impl NbtRead for TagID {
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
-        Ok(TagID::from(u8::nbt_read(reader)?))
+        TagID::try_from(u8::nbt_read(reader)?)
     }
 }
 
@@ -422,9 +420,6 @@ impl<S: AsRef<str>> NbtWrite for (S, Tag) {
 
 impl NbtWrite for TagID {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
-        if *self == TagID::Unsupported {
-            return Err(NbtError::Unsupported);
-        }
         (self.value() as u8).nbt_write(writer)
     }
 }
@@ -484,7 +479,7 @@ impl NbtWrite for Map {
             write_named_tag(writer, tag, key)
                 .map(|written| written + size)
         })?;
-        TagID::End.nbt_write(writer).map(|size| write_size + size)
+        0u8.nbt_write(writer).map(|size| write_size + size)
     }
 }
 
@@ -550,5 +545,21 @@ mod tests {
         let named = NamedTag::nbt_read(&mut reader)?;
         println!("Tag: {:#?}", named);
         Ok(())
+    }
+
+    #[test]
+    fn size_test() {
+        enum TagId2 {
+            End = 0,
+            One = 1,
+            Two = 2,
+            Neg = -1,
+        }
+        let id_size = std::mem::size_of::<TagID>();
+        let opt_size = std::mem::size_of::<Option<TagID>>();
+        let opt2_size = std::mem::size_of::<Option<TagId2>>();
+        println!("     Id: {id_size}
+    Option1:{opt_size}
+    Option2:{opt2_size}");
     }
 }
