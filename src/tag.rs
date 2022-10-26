@@ -1,6 +1,7 @@
 // https://wiki.vg/NBT
 
 use crate::family::*;
+use crate::io::NbtWrite;
 use crate::tag_info_table;
 use crate::Map;
 use crate::ThisError;
@@ -9,6 +10,7 @@ use num_traits::ToPrimitive;
 use num_traits::Zero;
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::string;
 
 /// Marks that a type is directly represented as an NBT tag type.
 pub trait NbtType {
@@ -18,19 +20,19 @@ pub trait NbtType {
     fn nbt(self) -> Tag;
 }
 
-/// A trait for encoding an object as NBT.
+/// A trait for NBT encoder..
 /// This trait is intended for types that don't have a direct
 /// NBT representation, but can be encoded as an NBT tree.
 pub trait EncodeNbt {
     /// Encode as NBT.
     /// This typically results in a [`Tag::Compound`], but may result in other [`Tag`] variants.
-    fn encode_nbt(&self) -> Tag;
+    fn encode_nbt(self) -> Tag;
 }
 
-/// A trait for decoding NBT into an object.
+/// A trait for a non-consuming NBT decoder.
 /// This trait is intended for types that don't have a direct
 /// NBT representation, but can be decoded from NBT data.
-pub trait DecodeNbt: Sized + EncodeNbt {
+pub trait DecodeNbt: Sized {
     type Error;
     /// Tries to decode from NBT.
     fn decode_nbt(nbt: Tag) -> Result<Self, Self::Error>;
@@ -39,21 +41,36 @@ pub trait DecodeNbt: Sized + EncodeNbt {
 /// This is where a majority of the generation for the code in this module happens.
 /// It utilizes the table in `\src\table.rs`.
 macro_rules! tag_data {
-    ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path),*] [$($attr:meta),*])+) => {
-        /// The NBT Tag enum.
-        /// To see what types are supported, take a look at `table.rs`.
+    ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path)?] [$($attr:meta)?])+) => {
+        #[doc = r#"
+        The NBT Tag enum.<br>
+        To see what types are supported, take a look at the table in table.rs.
+        "#]
         #[derive(Clone, Debug)]
         pub enum Tag {
             $(
+                // There exists the temptation to add Tag::None/Empty/Null to be able to represent
+                // a nothing value, but I don't think that would be useful at all.
+                // I'm just writing this comment here in case future me has the same temptation and actually
+                // wishes to follow through: Don't bother. It's probably not really necessary.
                 $(#[$attr])*
                 $title($type),
             )+
         }
 
-        /// The TagID represents the NBT type ID of a Tag.
+        #[doc = "The NBT tag type ID."]
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
         pub enum TagID {
+            #[doc = "
+            Used to mark the end of a [Tag::Compound].<br>
+            This is not an actual tag type ID, but is included as it is one of the potential
+            values that can be written or read in the place that the other IDs can be written or read.
+            "]
             End = 0,
+            #[doc = "
+            This variant is meant to represent any ID that is encountered that is not recognized, and
+            as such is likely part of an unsupported format.
+            "]
             Unsupported = -1,
             $(
                 $(#[$attr])*
@@ -61,10 +78,10 @@ macro_rules! tag_data {
             )+
         }
 
-        /// Enum type for Tag::List.
+        #[doc = "Enum type for Tag::List."]
         #[derive(Clone, Debug)]
         pub enum ListTag {
-            /// Represents a ListTag without any elements.
+            #[doc = "Represents a ListTag without any elements."]
             Empty,
             $(
                 $(#[$attr])*
@@ -73,7 +90,7 @@ macro_rules! tag_data {
         }
 
         impl TagID {
-            /// PascalCase title of this TagID.
+            #[doc = "PascalCase title of this TagID."]
             pub fn title(self) -> &'static str {
                 match self {
                     $(
@@ -85,7 +102,7 @@ macro_rules! tag_data {
                 }
             }
 
-            /// In the format of TAG_TagTitle.
+            #[doc = "In the format of TAG_TagTitle."] 
             pub fn name(self) -> &'static str {
                 match self {
                     $(
@@ -99,7 +116,7 @@ macro_rules! tag_data {
         }
 
         impl Tag {
-            /// Returns the NBT type ID.
+            #[doc = "Returns the NBT type ID."]
             pub fn id(&self) -> TagID {
                 match self {
                     $(
@@ -111,7 +128,7 @@ macro_rules! tag_data {
         }
 
         impl ListTag {
-            /// Returns the Tag type ID.
+            #[doc = "Returns the list type ID."]
             pub fn id(&self) -> TagID {
                 match self {
                     ListTag::Empty => TagID::End,
@@ -122,7 +139,10 @@ macro_rules! tag_data {
                 }
             }
 
-            /// Returns the number of elements in the list.
+            #[doc = "
+            Returns the number of elements in the list.<br>
+            Returns `0` for [ListTag::Empty].
+            "]
             pub fn len(&self) -> usize {
                 match self {
                     $(
@@ -134,9 +154,24 @@ macro_rules! tag_data {
             }
         }
 
+        #[doc = "
+        Allows for creating a TagID from a Numeric value.
+        ```
+        let id = TagID::from(1);
+        assert!(matches!(id, TagID::Byte));
+        ```
+        "]
         impl<T: ToPrimitive> From<T> for TagID {
+            #[doc = "
+            Creates a TagID from a Numeric value.<br>
+            Returns [TagID::Unsupported] for unrecognized values.
+            ```
+            let id = TagID::from(1);
+            assert!(matches!(id, TagID::Byte));
+            ```
+            "]
             fn from(value: T) -> Self {
-                match value.to_usize() {
+                match value.to_isize() {
                     $(
                         $(#[$attr])*
                         Some($id) => TagID::$title,
@@ -148,6 +183,7 @@ macro_rules! tag_data {
         }
 
         $(
+            #[doc = "NbtType implementation for all NBT representable types."]
             $(#[$attr])*
             impl NbtType for $type {
                 const ID: TagID = TagID::$title;
@@ -156,16 +192,32 @@ macro_rules! tag_data {
                 }
             }
 
+            #[doc = "
+            Implements non-consuming NBT encoders for all NBT representable types.
+            It's likely that you may want to keep the old value around rather
+            than consuming it and converting it to NBT. This is implemented for reference
+            types for that exact scenario.
+            "#]
             $(#[$attr])*
-            impl EncodeNbt for $type {
-                fn encode_nbt(&self) -> Tag {
+            impl EncodeNbt for &$type {
+                #[doc = "Encodes self as an NBT tag."]
+                fn encode_nbt(self) -> Tag {
                     self.clone().into()
                 }
             }
 
+            #[doc = "
+            Implements consuming NBT decoders for all NBT representable types.
+            The reason the decoder consumes the Tag is because a non-consuming decoder would
+            still need to clone the tag in order to return a result. It may be preferable to
+            not be forced to do a clone, so you're allowed to pass in the Tag to be consumed
+            so that you can avoid that clone, otherwise you can clone the tag yourself
+            before decoding it.
+            "]
             $(#[$attr])*
             impl DecodeNbt for $type {
                 type Error = String;
+                #[doc = "Attempts to decode the tag."]
                 fn decode_nbt(tag: Tag) -> Result<Self, String> {
                     if let Tag::$title(tag) = tag {
                         return Ok(tag)
@@ -174,11 +226,21 @@ macro_rules! tag_data {
                 }
             }
 
+            // Application of marker traits.
+            // The marker traits are defined in `/src/family.rs`.
+            // The marker traits are simply used to constrain trait bounds for implementations.
+            // Example:
+            // ```no_run
+            // impl<T: crate::family::Primitive> SomeTrait for T {
+            //     // ...
+            // }
+            // ```
             $(#[$attr])*
             $(
                 impl $impl for $type {}
-            )*
+            )?
 
+            // Create a Tag from its representational type.
             $(#[$attr])*
             impl From<$type> for Tag {
                 fn from(value: $type) -> Self {
@@ -186,7 +248,7 @@ macro_rules! tag_data {
                 }
             }
 
-            /// From a vector to a ListTag.
+            // Create a ListTag from a Vector
             $(#[$attr])*
             impl From<Vec<$type>> for ListTag {
                 fn from(value: Vec<$type>) -> Self {
@@ -194,7 +256,7 @@ macro_rules! tag_data {
                 }
             }
 
-            /// From a slice to a ListTag.
+            // Create a ListTag from a slice.
             $(#[$attr])*
             impl From<&[$type]> for ListTag {
                 fn from(value: &[$type]) -> Self {
@@ -202,6 +264,7 @@ macro_rules! tag_data {
                 }
             }
 
+            // Try to recreate a representational type from an NBT Tag.
             $(#[$attr])*
             impl TryFrom<Tag> for $type {
                 type Error = ();
@@ -219,6 +282,7 @@ macro_rules! tag_data {
 tag_info_table!(tag_data);
 
 /// Represents a Named NBT Tag, often used as a Tag Root for an NBT file.
+/// This is also sometimes called a root tag.
 #[derive(Clone, Debug)]
 pub struct NamedTag {
     pub(crate) name: String,
@@ -237,7 +301,7 @@ impl NamedTag {
         }
     }
 
-    /// Creates a new NamedTag with a name.
+    /// Creates a NamedTag with the supplied name.
     pub fn with_name<S, T>(name: S, tag: T) -> Self
     where
         S: Into<String>,
@@ -248,12 +312,13 @@ impl NamedTag {
             }
     }
 
-    /// Get the name of the NamedTag.
+    // When this is the root tag of an NBT file, the name is often empty.
+    /// Return the name.
     pub fn name(&self) -> &str {
         &self.name
     }
 
-    /// Borrow the NamedTag's tag value.
+    /// Immutably borrow the Tag.
     pub fn tag(&self) -> &Tag {
         &self.tag
     }
@@ -294,9 +359,11 @@ where
     }
 }
 
+/// Creates a (From<String>, Tag) from a NamedTag.
 impl<S> From<NamedTag> for (S,Tag)
 where
     S: From<String> {
+    /// Convert to a Tuple from a NamedTag.
     fn from(value: NamedTag) -> Self {
         (S::from(value.name), value.tag)
     }
@@ -304,14 +371,15 @@ where
 }
 
 impl TagID {
-    /// Returns this TagID as a usize.
-    pub fn value(self) -> usize {
-        self as usize
+    /// Returns this TagID as an isize.
+    /// (Tag::Unsupported has a value of -1)
+    pub fn value(self) -> isize {
+        self as isize
     }
 }
 
 impl Tag {
-    /// PascalCase title of this TagID.
+    /// PascalCase title of this Tag.
     pub fn title(&self) -> &'static str {
         self.id().title()
     }
@@ -351,6 +419,7 @@ impl Tag {
         Tag::String(value.into())
     }
     
+    // TODO: I don't think that I can make this work with an iterator, but I sure would like to try.
     /// Create a Tag::List.
     pub fn list<T>(array: T) -> Tag
     where
