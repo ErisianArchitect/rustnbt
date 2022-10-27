@@ -19,7 +19,7 @@
 ///     //                  This is used to control whether or not code is emitted depending on if the "extensions" feature is enabled.
 ///     //           $impl: These are trait implementations that are applied to the types. These traits do not do anything besides act as markers.
 ///     //           $attr: These are the attributes applied to code. This is so that we can enable or disable extensions.
-///     ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path),*] [$($attr:meta),*])+) => {
+///     ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path),*] [$($attr:meta)?])+) => {
 ///         // generation code here.
 ///     }
 /// }

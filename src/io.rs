@@ -122,7 +122,7 @@ macro_rules! tag_io {
         pub fn write_named_tag<W: Write, S: AsRef<str>>(writer: &mut W, tag: &Tag, name: S) -> Result<usize, NbtError> {
             match tag {
                 $(
-                    $(#[$attr])*
+                    $(#[$attr])?
                     Tag::$title(tag) => {
                         let id_size = TagID::$title.nbt_write(writer)?;
                         let key_size = name.as_ref().nbt_write(writer)?;
@@ -147,7 +147,7 @@ macro_rules! tag_io {
             let name = String::nbt_read(reader)?;
             let tag = match id {
                 $(
-                    $(#[$attr])*
+                    $(#[$attr])?
                     TagID::$title => {
                         Tag::$title(<$type>::nbt_read(reader)?)
                     }
@@ -162,7 +162,7 @@ macro_rules! tag_io {
             fn nbt_size(&self) -> usize {
                 match self {
                     $(
-                        $(#[$attr])*
+                        $(#[$attr])?
                         Tag::$title(tag) => tag.nbt_size(),
                     )+
                 }
@@ -174,7 +174,7 @@ macro_rules! tag_io {
             fn nbt_size(&self) -> usize {
                 match self {
                     $(
-                        $(#[$attr])*
+                        $(#[$attr])?
                         ListTag::$title(list) => list.iter().map(|item| item.nbt_size()).sum::<usize>() + 5,
                     )+
                     ListTag::Empty => 5,
@@ -192,7 +192,7 @@ macro_rules! tag_io {
                 }
                 match id {
                     $(
-                        $(#[$attr])*
+                        $(#[$attr])?
                         Ok(TagID::$title) => {
                             let length = u32::nbt_read(reader)?;
                             Ok(ListTag::$title(
@@ -215,7 +215,7 @@ macro_rules! tag_io {
             fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize,NbtError> {
                 match self {
                     $(
-                        $(#[$attr])*
+                        $(#[$attr])?
                         ListTag::$title(list) => {
                             TagID::$title.nbt_write(writer)?;
                             list.nbt_write(writer).map(|size| size + 1)
@@ -245,7 +245,7 @@ macro_rules! tag_io {
                     let name = String::nbt_read(reader)?;
                     let tag = match id {
                         $(
-                            $(#[$attr])*
+                            $(#[$attr])?
                             Ok(TagID::$title) => Tag::$title(<$type>::nbt_read(reader)?),
                         )+
                         Err(err) => return Err(err),
@@ -273,7 +273,7 @@ macro_rules! tag_io {
             fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
                 match self {
                     $(
-                        $(#[$attr])*
+                        $(#[$attr])?
                         Tag::$title(tag) => tag.nbt_write(writer),
                     )+
                 }

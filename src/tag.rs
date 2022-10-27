@@ -53,7 +53,7 @@ macro_rules! tag_data {
                 // a nothing value, but I don't think that would be useful at all.
                 // I'm just writing this comment here in case future me has the same temptation and actually
                 // wishes to follow through: Don't bother. It's probably not really necessary.
-                $(#[$attr])*
+                $(#[$attr])?
                 $title($type),
             )+
         }
@@ -62,7 +62,7 @@ macro_rules! tag_data {
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
         pub enum TagID {
             $(
-                $(#[$attr])*
+                $(#[$attr])?
                 $title = $id,
             )+
         }
@@ -73,7 +73,7 @@ macro_rules! tag_data {
             #[doc = "Represents a ListTag without any elements."]
             Empty,
             $(
-                $(#[$attr])*
+                $(#[$attr])?
                 $title(Vec<$type>),
             )+
         }
@@ -83,7 +83,7 @@ macro_rules! tag_data {
             pub fn title(self) -> &'static str {
                 match self {
                     $(
-                        $(#[$attr])*
+                        $(#[$attr])?
                         TagID::$title => stringify!($title),
                     )+
                 }
@@ -93,7 +93,7 @@ macro_rules! tag_data {
             pub fn name(self) -> &'static str {
                 match self {
                     $(
-                        $(#[$attr])*
+                        $(#[$attr])?
                         TagID::$title => concat!("TAG_", stringify!($title)),
                     )+
                 }
@@ -105,7 +105,7 @@ macro_rules! tag_data {
             pub fn id(&self) -> TagID {
                 match self {
                     $(
-                        $(#[$attr])*
+                        $(#[$attr])?
                         Tag::$title(_) => TagID::$title,
                     )+
                 }
@@ -118,7 +118,7 @@ macro_rules! tag_data {
                 match self {
                     ListTag::Empty => TagID::Byte,
                     $(
-                        $(#[$attr])*
+                        $(#[$attr])?
                         ListTag::$title(_) => TagID::$title,
                     )+
                 }
@@ -131,7 +131,7 @@ macro_rules! tag_data {
             pub fn len(&self) -> usize {
                 match self {
                     $(
-                        $(#[$attr])*
+                        $(#[$attr])?
                         ListTag::$title(list) => list.len(),
                     )+
                     ListTag::Empty => 0,
@@ -144,7 +144,7 @@ macro_rules! tag_data {
             fn try_from(value: u8) -> Result<Self,Self::Error> {
                 match value {
                     $(
-                        $(#[$attr])*
+                        $(#[$attr])?
                         $id => Ok(TagID::$title),
                     )+
                     0 => Err($crate::NbtError::End),
@@ -155,7 +155,7 @@ macro_rules! tag_data {
 
         $(
             #[doc = "NbtType implementation for all NBT representable types."]
-            $(#[$attr])*
+            $(#[$attr])?
             impl NbtType for $type {
                 const ID: TagID = TagID::$title;
                 fn nbt(self) -> Tag {
@@ -169,7 +169,7 @@ macro_rules! tag_data {
             than consuming it and converting it to NBT. This is implemented for reference
             types for that exact scenario.
             "]
-            $(#[$attr])*
+            $(#[$attr])?
             impl EncodeNbt for &$type {
                 #[doc = "Encodes self as an NBT tag."]
                 fn encode_nbt(self) -> Tag {
@@ -185,7 +185,7 @@ macro_rules! tag_data {
             so that you can avoid that clone, otherwise you can clone the tag yourself
             before decoding it.
             "]
-            $(#[$attr])*
+            $(#[$attr])?
             impl DecodeNbt for $type {
                 type Error = String;
                 #[doc = "Attempts to decode the tag."]
@@ -206,13 +206,13 @@ macro_rules! tag_data {
             //     // ...
             // }
             // ```
-            $(#[$attr])*
+            $(#[$attr])?
             $(
                 impl $impl for $type {}
             )?
 
             // Create a Tag from its representational type.
-            $(#[$attr])*
+            $(#[$attr])?
             impl From<$type> for Tag {
                 fn from(value: $type) -> Self {
                     Tag::$title(value)
@@ -220,7 +220,7 @@ macro_rules! tag_data {
             }
 
             // Create a ListTag from a Vector
-            $(#[$attr])*
+            $(#[$attr])?
             impl From<Vec<$type>> for ListTag {
                 fn from(value: Vec<$type>) -> Self {
                     ListTag::$title(value)
@@ -228,7 +228,7 @@ macro_rules! tag_data {
             }
 
             // Create a ListTag from a slice.
-            $(#[$attr])*
+            $(#[$attr])?
             impl From<&[$type]> for ListTag {
                 fn from(value: &[$type]) -> Self {
                     ListTag::$title(value.to_vec())
@@ -236,7 +236,7 @@ macro_rules! tag_data {
             }
 
             // Try to recreate a representational type from an NBT Tag.
-            $(#[$attr])*
+            $(#[$attr])?
             impl TryFrom<Tag> for $type {
                 type Error = ();
                 fn try_from(value: Tag) -> Result<$type, ()> {
