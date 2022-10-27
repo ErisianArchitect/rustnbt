@@ -112,7 +112,7 @@ primitive_table![
 ];
 
 macro_rules! tag_io {
-    ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path)?] [$($attr:meta)?])+) => {
+    ($($id:literal $title:ident $type:path [$($impl:path)?] [$($attr:meta)?])+) => {
         #[doc = "
         This function is the bread and butter of serialization of NBT data.<br>
         This function will write the Tag's ID, the provided Tag Name, and then the tag itself.

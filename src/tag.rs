@@ -41,7 +41,7 @@ pub trait DecodeNbt: Sized {
 /// This is where a majority of the generation for the code in this module happens.
 /// It utilizes the table in `\src\table.rs`.
 macro_rules! tag_data {
-    ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path)?] [$($attr:meta)?])+) => {
+    ($($id:literal $title:ident $type:path [$($impl:path)?] [$($attr:meta)?])+) => {
         #[doc = "
         The NBT Tag enum.<br>
         To see what types are supported, take a look at the table in table.rs.
