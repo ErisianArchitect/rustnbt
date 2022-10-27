@@ -134,7 +134,7 @@ macro_rules! tag_io {
         #[doc = "
         Like [write_named_tag], this function is crucial to deserialization of NBT data.
         This function will first read a byte representing the [Tag] ID.
-        It will then verify that the [Tag] ID is valid (can't be 0, and must match one of the Tag IDs.).
+        It will then verify that the [Tag] ID is valid (can't be 0, and must match one of the Tag IDs).
         After verifying that the [Tag] ID is valid, it will read the name of the tag.
         After reading the name, it will read the tag itself, using the [Tag] ID that was read to
         determine which [Tag] type to read. Typically this will be a Compound tag (ID: 10), or a List tag (ID: 9).
@@ -150,7 +150,6 @@ macro_rules! tag_io {
                         Tag::$title(<$type>::nbt_read(reader)?)
                     }
                 )+
-                _ => panic!("Impossible state."),
             };
             Ok((name, tag))
         }
