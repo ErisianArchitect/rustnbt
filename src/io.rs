@@ -84,7 +84,7 @@ macro_rules! primitive_table {
     ($($primitive:ident)+) => {
         $(
             impl NbtRead for $primitive {
-                /// Attempts to read primitive from reader. This will read in Big-Endian byte-order.
+                #[doc ="Attempts to read primitive from reader. This will read in Big-Endian byte-order."]
                 fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
                     let mut buf = [0u8; std::mem::size_of::<$primitive>()];
                     reader.read_exact(&mut buf)?;
@@ -93,7 +93,7 @@ macro_rules! primitive_table {
             }
 
             impl NbtWrite for $primitive {
-                /// Attempts to write primitive to writer. This will write in Big-Endian byte-order.
+                #[doc = "Attempts to write primitive to writer. This will write in Big-Endian byte-order."]
                 fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
                     Ok(writer.write(self.to_be_bytes().as_slice())?)
                 }
@@ -112,11 +112,13 @@ primitive_table![
 ];
 
 macro_rules! tag_io {
-    ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path)?] [$($attr:meta),*])+) => {
-        /// This function is the bread and butter of serialization of NBT data.
-        /// This function will write the Tag's ID, the provided Tag Name, and then the tag itself.
-        /// This is necessary for writing Compound (HashMap) tags.
-        /// This is also how the root tag of an NBT file is written.
+    ($($id:literal $title:ident $type:path [$subtype:ident] [$origin:ident] [$($impl:path)?] [$($attr:meta)?])+) => {
+        #[doc = "
+        This function is the bread and butter of serialization of NBT data.<br>
+        This function will write the Tag's ID, the provided Tag Name, and then the tag itself.
+        This is necessary for writing Compound (HashMap) tags.
+        This is also how the root tag of an NBT file is written.
+        "]
         pub fn write_named_tag<W: Write, S: AsRef<str>>(writer: &mut W, tag: &Tag, name: S) -> Result<usize, NbtError> {
             match tag {
                 $(
@@ -131,13 +133,15 @@ macro_rules! tag_io {
             }
         }
 
-        /// Like write_named_tag, this function is crucial to deserialization of NBT data.
-        /// This function will first read a byte representing the Tag ID.
-        /// It will then verify that the Tag ID is valid (can't be 0, and must match one of the Tag IDs.).
-        /// After verifying that the Tag ID is valid, it will read the name of the tag.
-        /// After reading the name, it will read the tag itself, using the Tag ID that was read to
-        /// determine which Tag type to read. Typically this will be a Compound tag (ID: 10), or a List tag (ID: 9).
-        /// There is no restriction on what type this tag can be, though.
+        #[doc = "
+        Like write_named_tag, this function is crucial to deserialization of NBT data.
+        This function will first read a byte representing the Tag ID.
+        It will then verify that the Tag ID is valid (can't be 0, and must match one of the Tag IDs.).
+        After verifying that the Tag ID is valid, it will read the name of the tag.
+        After reading the name, it will read the tag itself, using the Tag ID that was read to
+        determine which Tag type to read. Typically this will be a Compound tag (ID: 10), or a List tag (ID: 9).
+        There is no restriction on what type this tag can be, though.
+        "]
         pub fn read_named_tag<R: Read>(reader: &mut R) -> Result<(String, Tag), NbtError> {
             let id = TagID::nbt_read(reader)?;
             let name = String::nbt_read(reader)?;
@@ -154,6 +158,7 @@ macro_rules! tag_io {
         }
 
         impl NbtSize for Tag {
+            #[doc = "Get the serialization size in bytes. That is, the number of bytes that this data will serialize to."]
             fn nbt_size(&self) -> usize {
                 match self {
                     $(
@@ -165,6 +170,7 @@ macro_rules! tag_io {
         }
 
         impl NbtSize for ListTag {
+            #[doc = "Get the serialization size in bytes. That is, the number of bytes that this data will serialize to."]
             fn nbt_size(&self) -> usize {
                 match self {
                     $(
@@ -177,8 +183,13 @@ macro_rules! tag_io {
         }
 
         impl NbtRead for ListTag {
+            #[doc = "Attempt to read a ListTag from a reader."]
             fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
                 let id = TagID::nbt_read(reader);
+                if matches!(id, Err($crate::NbtError::End)) {
+                    u32::nbt_read(reader)?;
+                    return Ok(ListTag::Empty);
+                }
                 match id {
                     $(
                         $(#[$attr])*
@@ -304,18 +315,21 @@ where
 }
 
 impl<T: Primitive + Sized> NbtSize for T {
+    #[doc = "Get the serialization size in bytes. That is, the number of bytes that this data will serialize to."]
     fn nbt_size(&self) -> usize {
         std::mem::size_of::<T>()
     }
 }
 
 impl<T: Primitive + Sized> NbtSize for Vec<T> {
+    #[doc = "Get the serialization size in bytes. That is, the number of bytes that this data will serialize to."]
     fn nbt_size(&self) -> usize {
         std::mem::size_of::<T>() * self.len() + 4usize
     }
 }
 
 impl NbtSize for String {
+    #[doc = "Get the serialization size in bytes. That is, the number of bytes that this data will serialize to."]
     fn nbt_size(&self) -> usize {
         /*2 bytes for the length*/ 2usize + self.len()
     }
