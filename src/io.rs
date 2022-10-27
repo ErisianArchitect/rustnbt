@@ -5,8 +5,6 @@ use crate::{
     Map,
     ThisError,
     NbtError,
-    mebibytes,
-    safe_vec_u8_to_vec_i8,
     tag::{
         Tag,
         TagID,
@@ -394,7 +392,12 @@ impl NbtRead for Vec<i8> {
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
         let length = u32::nbt_read(reader)?;
         let bytes = read_bytes(reader, length as usize)?;
-        Ok(safe_vec_u8_to_vec_i8(bytes))
+        // Use compiler magic to convert Vec<u8> to Vec<i8>
+        Ok(
+            bytes.into_iter()
+                .map(|x| x as i8)
+                .collect()
+        )
     }
 }
 
