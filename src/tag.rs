@@ -141,6 +141,12 @@ macro_rules! tag_data {
 
         impl TryFrom<u8> for TagID {
             type Error = $crate::NbtError;
+            #[doc = "
+            Attempts to create a [TagID] from a [u8].<br>
+            Errors:
+            - NbtError::End
+            - NbtError::Unsupported { id_encountered }
+            "]
             fn try_from(value: u8) -> Result<Self,Self::Error> {
                 match value {
                     $(
@@ -158,6 +164,7 @@ macro_rules! tag_data {
             $(#[$attr])?
             impl NbtType for $type {
                 const ID: TagID = TagID::$title;
+                #[doc = "Converts to an NBT [Tag]."]
                 fn nbt(self) -> Tag {
                     self.into()
                 }
@@ -187,13 +194,13 @@ macro_rules! tag_data {
             "]
             $(#[$attr])?
             impl DecodeNbt for $type {
-                type Error = String;
+                type Error = ();
                 #[doc = "Attempts to decode the tag."]
-                fn decode_nbt(tag: Tag) -> Result<Self, String> {
+                fn decode_nbt(tag: Tag) -> Result<Self, ()> {
                     if let Tag::$title(tag) = tag {
                         return Ok(tag)
                     }
-                    Err(format!("Failed to convert from NBT to {}. Found: {}", stringify!($type), tag.id()))
+                    Err(())
                 }
             }
 
@@ -214,6 +221,7 @@ macro_rules! tag_data {
             // Create a Tag from its representational type.
             $(#[$attr])?
             impl From<$type> for Tag {
+                #[doc = concat!("Create a [Tag::", stringify!($title), "] from its representational type.")]
                 fn from(value: $type) -> Self {
                     Tag::$title(value)
                 }
@@ -222,6 +230,7 @@ macro_rules! tag_data {
             // Create a ListTag from a Vector
             $(#[$attr])?
             impl From<Vec<$type>> for ListTag {
+                #[doc = concat!("Create a [ListTag::", stringify!($title), "] from its representational vector type.")]
                 fn from(value: Vec<$type>) -> Self {
                     ListTag::$title(value)
                 }
@@ -230,6 +239,7 @@ macro_rules! tag_data {
             // Create a ListTag from a slice.
             $(#[$attr])?
             impl From<&[$type]> for ListTag {
+                #[doc = concat!("Create a [ListTag::", stringify!($title), "] from its representational slice type.")]
                 fn from(value: &[$type]) -> Self {
                     ListTag::$title(value.to_vec())
                 }
