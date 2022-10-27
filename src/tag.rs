@@ -44,7 +44,7 @@ macro_rules! tag_data {
     ($($id:literal $title:ident $type:path [$($impl:path)?] [$($attr:meta)?])+) => {
         #[doc = "
         The NBT Tag enum.<br>
-        To see what types are supported, take a look at the table in table.rs.
+        To see what types are supported, take a look at the table in [tag_info_table] located in [`/src/table.rs`].
         "]
         #[derive(Clone, Debug)]
         pub enum Tag {
@@ -67,7 +67,7 @@ macro_rules! tag_data {
             )+
         }
 
-        #[doc = "Enum type for Tag::List."]
+        #[doc = "Enum type for [Tag::List]."]
         #[derive(Clone, Debug)]
         pub enum ListTag {
             #[doc = "Represents a ListTag without any elements."]
@@ -79,7 +79,7 @@ macro_rules! tag_data {
         }
 
         impl TagID {
-            #[doc = "PascalCase title of this TagID."]
+            #[doc = "PascalCase title of this [TagID]."]
             pub fn title(self) -> &'static str {
                 match self {
                     $(
@@ -144,8 +144,8 @@ macro_rules! tag_data {
             #[doc = "
             Attempts to create a [TagID] from a [u8].<br>
             Errors:
-            - NbtError::End
-            - NbtError::Unsupported { id_encountered }
+            - [NbtError::End]
+            - [NbtError::Unsupported] { id_encountered }
             "]
             fn try_from(value: u8) -> Result<Self,Self::Error> {
                 match value {
@@ -160,9 +160,10 @@ macro_rules! tag_data {
         }
 
         $(
-            #[doc = "NbtType implementation for all NBT representable types."]
+            // NbtType implementations for all NBT representable types.
             $(#[$attr])?
             impl NbtType for $type {
+                #[doc = "The tag type ID."]
                 const ID: TagID = TagID::$title;
                 #[doc = "Converts to an NBT [Tag]."]
                 fn nbt(self) -> Tag {
@@ -170,12 +171,10 @@ macro_rules! tag_data {
                 }
             }
 
-            #[doc = "
-            Implements non-consuming NBT encoders for all NBT representable types.
-            It's likely that you may want to keep the old value around rather
-            than consuming it and converting it to NBT. This is implemented for reference
-            types for that exact scenario.
-            "]
+            // Implements non-consuming NBT encoders for all NBT representable types.
+            // It's likely that you may want to keep the old value around rather
+            // than consuming it and converting it to NBT. This is implemented for reference
+            // types for that exact scenario.
             $(#[$attr])?
             impl EncodeNbt for &$type {
                 #[doc = "Encodes self as an NBT tag."]
@@ -184,14 +183,12 @@ macro_rules! tag_data {
                 }
             }
 
-            #[doc = "
-            Implements consuming NBT decoders for all NBT representable types.
-            The reason the decoder consumes the Tag is because a non-consuming decoder would
-            still need to clone the tag in order to return a result. It may be preferable to
-            not be forced to do a clone, so you're allowed to pass in the Tag to be consumed
-            so that you can avoid that clone, otherwise you can clone the tag yourself
-            before decoding it.
-            "]
+            // Implements consuming NBT decoders for all NBT representable types.
+            // The reason the decoder consumes the Tag is because a non-consuming decoder would
+            // still need to clone the tag in order to return a result. It may be preferable to
+            // not be forced to do a clone, so you're allowed to pass in the Tag to be consumed
+            // so that you can avoid that clone, otherwise you can clone the tag yourself
+            // before decoding it.
             $(#[$attr])?
             impl DecodeNbt for $type {
                 type Error = ();
@@ -249,6 +246,7 @@ macro_rules! tag_data {
             $(#[$attr])?
             impl TryFrom<Tag> for $type {
                 type Error = ();
+                #[doc = "Tries to recreate a representational type from a [Tag]."]
                 fn try_from(value: Tag) -> Result<$type, ()> {
                     if let Tag::$title(inner) = value {
                         return Ok(inner);
@@ -369,39 +367,100 @@ impl Tag {
         self.id().name()
     }
 
-    /// Create a Tag::ByteArray from the provided iterable.
+    /// Create a [Tag::Byte] from the provided value.
+    /// If the provided value cannot be converted to an [i8], then `Tag::Byte(0)` will be returned.
+    pub fn byte<T: ToPrimitive>(value: T) -> Tag {
+        if let Some(value) = value.to_i8() {
+            Tag::Byte(value)
+        } else {
+            // TODO: What should happen if the above operation fails?
+            Tag::Byte(0)
+        }
+    }
+
+    /// Create a [Tag::Short] from the provided value.
+    /// If the provided value cannot be converted to an [i16], then `Tag::Short(0)` will be returned.
+    pub fn short<T: ToPrimitive>(value: T) -> Tag {
+        if let Some(value) = value.to_i16() {
+            Tag::Short(value)
+        } else {
+            Tag::Short(0)
+        }
+    }
+
+    /// Create a [Tag::Int] from the provided value.
+    /// If the provided value cannot be converted to an [i32], then `Tag::Int(0)` will be returned.
+    pub fn int<T: ToPrimitive>(value: T) -> Tag {
+        if let Some(value) = value.to_i32() {
+            Tag::Int(value)
+        } else {
+            Tag::Int(0)
+        }
+    }
+
+    /// Create a [Tag::Long] from the provided value.
+    /// If the provided value cannot be converted to an [i64], then `Tag::Long(0)` will be returned.
+    pub fn long<T: ToPrimitive>(value: T) -> Tag {
+        if let Some(value) = value.to_i64() {
+            Tag::Long(value)
+        } else {
+            Tag::Long(0)
+        }
+    }
+
+    /// Create a [Tag::Float] from the provided value.
+    /// If the provided value cannot be converted to an [f32], then `Tag::Float(f32::NAN)` will be returned.
+    pub fn float<T: ToPrimitive>(value: T) -> Tag {
+        if let Some(value) = value.to_f32() {
+            Tag::Float(value)
+        } else {
+            Tag::Float(f32::NAN)
+        }
+    }
+
+    /// Create a [Tag::Double] from the provided value.
+    /// If the provided value cannot be converted to an [f64]m then `Tag::Double(f64::NAN)` will be returned.
+    pub fn double<T: ToPrimitive>(value: T) -> Tag {
+        if let Some(value) = value.to_f64() {
+            Tag::Double(value)
+        } else {
+            Tag::Double(f64::NAN)
+        }
+    }
+
+    /// Create a [Tag::ByteArray] from the provided iterable.
     pub fn bytearray<T: Into<i8>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::ByteArray(it.into_iter().map(T::into).collect())
     }
 
-    /// Create a Tag::ByteArray from the provided iterable.
+    /// Create a [Tag::ByteArray] from the provided iterable.
     pub fn bytes<T: Into<u8>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::ByteArray(it.into_iter().map(|value| value.into() as i8).collect())
     }
 
-    /// Create a Tag::IntArray from the provided iterable.
+    /// Create a [Tag::IntArray] from the provided iterable.
     pub fn intarray<T: Into<i32>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::IntArray(it.into_iter().map(T::into).collect())
     }
 
     #[cfg(feature = "extensions")]
-    /// Create a Tag::ShortArray from the provided iterable.
+    /// Create a [Tag::ShortArray] from the provided iterable.
     pub fn shortarray<T: Into<i16>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::ShortArray(it.into_iter().map(T::into).collect())
     }
 
-    /// Create a Tag::LongArray from the provided iterable.
+    /// Create a [Tag::LongArray] from the provided iterable.
     pub fn longarray<T: Into<i64>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::LongArray(it.into_iter().map(T::into).collect())
     }
 
-    /// Create a Tag::String.
+    /// Create a [Tag::String].
     pub fn string<S: Into<String>>(value: S) -> Tag {
         Tag::String(value.into())
     }
     
     // TODO: I don't think that I can make this work with an iterator, but I sure would like to try.
-    /// Create a Tag::List.
+    /// Create a [Tag::List].
     pub fn list<T>(array: T) -> Tag
     where
         T: Into<ListTag>,
@@ -409,7 +468,7 @@ impl Tag {
         Tag::List(array.into())
     }
 
-    /// Create a Tag::Compound.
+    /// Create a [Tag::Compound].
     pub fn compound<S, T, IT>(items: IT) -> Tag
     where
         S: Into<String>,
@@ -424,15 +483,15 @@ impl Tag {
     }
 }
 
-/// Creates a Tag::Byte from a boolean value.
+/// Creates a [Tag::Byte] from a boolean value.
 impl From<bool> for Tag {
-    /// Create a Tag::Byte from a boolean value.
+    /// Create a [Tag::Byte] from a boolean value.
     fn from(on: bool) -> Self {
         Tag::Byte(if on { 1 } else { 0 })
     }
 }
 
-/// Creates a Tag from &str
+/// Creates a [Tag::String] from &str
 impl From<&str> for Tag {
     /// Creates a [Tag::String].
     fn from(value: &str) -> Self {
@@ -440,12 +499,14 @@ impl From<&str> for Tag {
     }
 }
 
+/// Attempts to create a [bool] from a [Tag].
+/// The [Tag] must be a numeric type, such as [Tag::Byte], or [Tag::Float]. `0` Represents `false` and non-zero represents `true`.
 impl TryFrom<Tag> for bool {
     type Error = ();
 
-    /// Tries to create a bool from a Tag value.
-    /// The Tag type must be a numeric type, such as `Tag::Byte`, `Tag::Int`, `Tag::Float`, `Tag::U128`, etc.
-    /// Returns false for zero, and true for non-zero.
+    /// Tries to create a [bool] from a [Tag] value.
+    /// The [Tag] type must be a numeric type, such as [Tag::Byte], [Tag::Int], [Tag::Float], etc.
+    /// Returns `false` for zero, and `true` for non-zero.
     fn try_from(value: Tag) -> Result<Self, Self::Error> {
         Ok(match value {
             Tag::Byte(inner) => !inner.is_zero(),
