@@ -30,27 +30,29 @@ pub trait NbtSize {
 }
 
 /// Trait applied to all readers for NBT extensions.
-pub trait ReadNbt<T: NbtRead>: Read {
+pub trait ReadNbt: Read {
     /// Read NBT (anything that implements NbtRead).
-    fn read_nbt(&mut self) -> Result<T, NbtError>;
+    fn read_nbt<T: NbtRead>(&mut self) -> Result<T, NbtError>;
 }
 
-impl<Reader: Read, T: NbtRead> ReadNbt<T> for Reader {
+// std::io::Read extension method read_nbt implementation.
+impl<Reader: Read> ReadNbt for Reader {
     /// Read NBT (anything that implements NbtRead).
-    fn read_nbt(&mut self) -> Result<T, NbtError> {
+    fn read_nbt<T: NbtRead>(&mut self) -> Result<T, NbtError> {
         T::nbt_read(self)
     }
 }
 
 /// Trait applied to all writers for NBT extensions.
-pub trait WriteNbt<T: NbtWrite>: Write {
+pub trait WriteNbt: Write {
     /// Write NBT (anything that implements NbtWrite).
-    fn write_nbt(&mut self, value: &T) -> Result<usize, NbtError>;
+    fn write_nbt<T: NbtWrite>(&mut self, value: &T) -> Result<usize, NbtError>;
 }
 
-impl<Writer: Write, T: NbtWrite> WriteNbt<T> for Writer {
+// std::io::Write extension method write_nbt implementation.
+impl<Writer: Write> WriteNbt for Writer {
     /// Write NBT (anything that implements NbtWrite).
-    fn write_nbt(&mut self, value: &T) -> Result<usize, NbtError> {
+    fn write_nbt<T: NbtWrite>(&mut self, value: &T) -> Result<usize, NbtError> {
         value.nbt_write(self)
     }
 }
