@@ -3,7 +3,6 @@
 
 use crate::{
     Map,
-    ThisError,
     NbtError,
     tag::{
         Tag,
@@ -14,13 +13,7 @@ use crate::{
     family::*,
     tag_info_table,
 };
-use std::{
-    io::{
-        Read,
-        Write,
-    },
-    ops::Mul,
-};
+use std::io::{ Read, Write };
 
 /// Trait that gives the serialization size in bytes of various values.
 /// This size may include a 2 or 4 byte length, or a single byte end marker in addition to the payload.
