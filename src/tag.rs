@@ -1,16 +1,14 @@
 // https://wiki.vg/NBT
 
-use crate::family::*;
-use crate::io::NbtWrite;
-use crate::tag_info_table;
-use crate::Map;
-use crate::ThisError;
+use crate::{
+    family::*,
+    Map,
+    tag_info_table,
+};
 
 use num_traits::ToPrimitive;
 use num_traits::Zero;
-use std::fmt::Debug;
 use std::fmt::Display;
-use std::string;
 
 /// Marks that a type is directly represented as an NBT tag type.
 pub trait NbtType {
@@ -89,7 +87,7 @@ macro_rules! tag_data {
                 }
             }
 
-            #[doc = "In the format of TAG_TagTitle."] 
+            #[doc = "In the format of `TAG_TagTitle`."] 
             pub fn name(self) -> &'static str {
                 match self {
                     $(
@@ -113,7 +111,7 @@ macro_rules! tag_data {
         }
 
         impl ListTag {
-            #[doc = "Returns the list type ID."]
+            #[doc = "Returns the list type ID. Returns [TagID::Byte] for [ListTag::Empty]."]
             pub fn id(&self) -> TagID {
                 match self {
                     ListTag::Empty => TagID::Byte,
