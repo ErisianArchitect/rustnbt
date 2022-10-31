@@ -244,17 +244,45 @@ token_api!{
 }
 
 fn parser() -> impl Parser<Token, Tag, Error = Simple<Token>> {
-    choice((
-        
-    ))
+    // mapped to String
+    let ident = filter(|token| matches!(token, Token::Identifier(_) | Token::StringLiteral(_) | Token::Boolean(_)))
+        .map(|token| {
+            match token {
+                Token::Identifier(text) => text,
+                Token::StringLiteral(text) => text,
+                Token::Boolean(on) => String::from(if on { "true" } else { "false" }),
+                _ => unreachable!(),
+            }
+        });
+    macro_rules! int_parser {
+        (let $name:ident = $type:ident) => {
+            
+        };
+    }
+    let byte = filter(|token| matches!(token, Token::Integer(_, IntegerType::Byte)))
+        .map(|token| {
+            Tag::Byte(match token {
+                Token::Integer(num_str, IntegerType::Byte) => i8::from_str_radix(&num_str, 10).unwrap_or_default(),
+                _ => unreachable!(),
+            })
+        });
+    // let short = filter
+    
+    // recursive(|compound| {
+
+    // })
+    todo!()
 }
 
 pub fn parse<S: AsRef<str>>(source: S) -> Result<Tag, ParseError> {
-    let tokens = Token::parse(source);
-    if let Ok(tokens) = tokens {
-
-    } else {
-        Err(ParseError::TokenizeError(tokens.unwrap_err()))
+    match Token::parse(source) {
+        Ok(tokens) => {
+            match parser().parse(tokens) {
+                Ok(tag) => Ok(tag),
+                Err(errors) => Err(ParseError::ParseFailure(errors)),
+            }
+        },
+        Err(errors) => Err(ParseError::TokenizeError(errors)),
     }
 }
 
