@@ -4,15 +4,14 @@ pub mod io;
 pub(crate) mod table;
 pub mod tag;
 pub mod macros;
-
-use thiserror::Error as ThisError;
+pub mod snbt;
 
 /// This is the Error type returned from NbtRead and NbtWrite operations that fail.
-#[derive(ThisError, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum NbtError {
     /// Error from std::io::Error.
-    #[error("io error.")]
-    IO(#[from] std::io::Error),
+    #[error("{0}")]
+    IoError(#[from] std::io::Error),
     /// Failure to convert bytes to a UTF-8 string.
     #[error("Failed to read UTF-8 string.")]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
