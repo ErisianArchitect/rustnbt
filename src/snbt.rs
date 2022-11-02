@@ -84,16 +84,15 @@ fn keyword<S: AsRef<str>>(word: S, ignore_case: bool) -> impl Parser<char, (), E
 }
 
 fn no_case<C: Container<char>>(chars: C) -> HashSet<char> {
-    let mut set: HashSet<char> = HashSet::new();
-    chars.get_iter().for_each(|c| {
+    chars.get_iter().fold(HashSet::new(), |mut set, c| {
         set.insert(c);
         if c.is_lowercase() {
             set.extend(c.to_uppercase());
         } else {
             set.extend(c.to_lowercase());
         }
-    });
-    set
+        set
+    })
 }
 
 fn one_of_nc<C: Container<char>, E: Error<char>>(chars: C) -> OneOf<char,HashSet<char>,E> {
