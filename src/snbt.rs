@@ -476,15 +476,6 @@ pub fn parse<S: AsRef<str>>(source: S) -> Result<Tag, ParseError> {
     }
 }
 
-pub enum ArrayDump {
-    /// The entire contents of the array are dumped on a single line.
-    SingleLine,
-}
-
-pub struct DumpSettings {
-    array: ArrayDump,
-}
-
 fn escape_string<S: AsRef<str>>(unescaped: S) -> String {
     use std::fmt::Write;
     let unescaped = unescaped.as_ref();
