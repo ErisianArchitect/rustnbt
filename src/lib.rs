@@ -5,6 +5,7 @@ pub(crate) mod table;
 pub mod tag;
 pub mod macros;
 pub mod snbt;
+pub mod format;
 
 /// This is the Error type returned from NbtRead and NbtWrite operations that fail.
 #[derive(thiserror::Error, Debug)]

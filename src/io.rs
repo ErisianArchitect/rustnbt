@@ -584,20 +584,4 @@ mod tests {
         println!("Tag: {:#?}", named);
         Ok(())
     }
-
-    #[test]
-    fn size_test() {
-        enum TagId2 {
-            End = 0,
-            One = 1,
-            Two = 2,
-            Neg = -1,
-        }
-        let id_size = std::mem::size_of::<TagID>();
-        let opt_size = std::mem::size_of::<Option<TagID>>();
-        let opt2_size = std::mem::size_of::<Option<TagId2>>();
-        println!("     Id: {id_size}
-    Option1:{opt_size}
-    Option2:{opt2_size}");
-    }
 }
