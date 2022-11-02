@@ -430,60 +430,6 @@ fn parser() -> impl Parser<Token, Tag, Error = Simple<Token>> {
     ))
 }
 
-#[test]
-fn parsetest() {
-    let snbt = r#"
-    {
-        byte1 : 0b,
-        byte2 : -10b,
-        byte3 : 127b,
-        short : 69s,
-        int : 420,
-        long : 69420,
-        float : 3f,
-        float2 : 3.14f,
-        double : 4d,
-        double2 : 4.5d,
-        double3 : 5.1,
-        bytearray : [B; true, false, 5b],
-        intarray : [I; 3, 5, 1],
-        longarray : [L; 3l, 4l, 5l],
-        list : [4b, 3b, 2b],
-        compound : {
-            "test" : "The quick brown fox jumps over the lazy dog."
-        }
-    }
-    "#;
-    if let Ok(Tag::Compound(result)) = parse(snbt) {
-        macro_rules! check_keys {
-            ($($key:literal)+) => {
-                $(
-                    assert!(result.contains_key($key));
-                )+
-            };
-        }
-        check_keys!{
-            "byte1"
-            "byte2"
-            "byte3"
-            "short"
-            "int"
-            "long"
-            "float"
-            "float2"
-            "double"
-            "double3"
-            "bytearray"
-            "intarray"
-            "longarray"
-            "list"
-            "compound"
-        }
-    } else {
-        panic!();
-    }
-}
-
 /// Attempt to parse Minecraft SNBT format into an NBT [Tag].
 /// ### Example
 /// ```
@@ -542,6 +488,7 @@ pub struct DumpSettings {
 fn escape_string<S: AsRef<str>>(unescaped: S) -> String {
     use std::fmt::Write;
     let unescaped = unescaped.as_ref();
+    // Macros make the whole world better!
     macro_rules! match_char {
         ($buffer:expr, $input:expr; $($tok:tt => $escaped:expr),+) => {
             match $input {
@@ -557,11 +504,7 @@ fn escape_string<S: AsRef<str>>(unescaped: S) -> String {
             $name => write!("{}", $escaped)
         };
     }
-    let mut buffer = String::with_capacity(unescaped.len() + 2);
-    // Escaped string doesn't need quotes.
-    // write!(buffer, "{}", '"');
-    
-    unescaped.chars().fold(&mut buffer, |buffer, ch| {
+    unescaped.chars().fold(String::with_capacity(unescaped.len() + 2), |mut buffer, ch| {
         match_char!{buffer, ch;
             '\t' => "\\t",
             '\r' => "\\r",
@@ -577,10 +520,7 @@ fn escape_string<S: AsRef<str>>(unescaped: S) -> String {
             other => other
         };
         buffer
-    });
-    // Actually, an escaped string wouldn't have quotes.
-    // write!(buffer, "{}", '"');
-    buffer
+    })
 }
 
 pub fn dump_snbt<T: AsRef<Tag>>(tag: T) -> Result<String, (/*[PLACEHOLDER]*/)> {
@@ -632,6 +572,60 @@ fn test_parse<S: AsRef<str>>(source: S) {
         Err(err) => {
             eprintln!("{:#?}", err);
         }
+    }
+}
+
+#[test]
+fn parsetest() {
+    let snbt = r#"
+    {
+        byte1 : 0b,
+        byte2 : -10b,
+        byte3 : 127b,
+        short : 69s,
+        int : 420,
+        long : 69420,
+        float : 3f,
+        float2 : 3.14f,
+        double : 4d,
+        double2 : 4.5d,
+        double3 : 5.1,
+        bytearray : [B; true, false, 5b],
+        intarray : [I; 3, 5, 1],
+        longarray : [L; 3l, 4l, 5l],
+        list : [4b, 3b, 2b],
+        compound : {
+            "test" : "The quick brown fox jumps over the lazy dog."
+        }
+    }
+    "#;
+    if let Ok(Tag::Compound(result)) = parse(snbt) {
+        macro_rules! check_keys {
+            ($($key:literal)+) => {
+                $(
+                    assert!(result.contains_key($key));
+                )+
+            };
+        }
+        check_keys!{
+            "byte1"
+            "byte2"
+            "byte3"
+            "short"
+            "int"
+            "long"
+            "float"
+            "float2"
+            "double"
+            "double3"
+            "bytearray"
+            "intarray"
+            "longarray"
+            "list"
+            "compound"
+        }
+    } else {
+        panic!();
     }
 }
 
