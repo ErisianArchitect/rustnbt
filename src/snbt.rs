@@ -598,7 +598,16 @@ fn foo() {
     longarray : [L; 3l, 4l, 5l],
     list : [4b, 3b, 2b],
     compound : {
-        "test" : "The quick brown fox jumps over the lazy dog."
+        "test" : "The quick brown fox jumps over the lazy dog.",
+        nested : {
+            nested : {
+                nested : {
+                    nested : {
+                        leaf : "This is a secret."
+                    }
+                }
+            }
+        }
     }
 }
     "#);
