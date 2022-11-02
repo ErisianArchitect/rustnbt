@@ -371,7 +371,7 @@ impl Tag {
         if let Some(value) = value.to_i8() {
             Tag::Byte(value)
         } else {
-            // TODO: What should happen if the above operation fails?
+            // DECIDE: [ fn Tag::byte() ] What should happen if the above operation fails?
             Tag::Byte(0)
         }
     }
@@ -457,13 +457,20 @@ impl Tag {
         Tag::String(value.into())
     }
     
-    // TODO: I don't think that I can make this work with an iterator, but I sure would like to try.
+    // TODO: [ fn Tag::list() ]I don't think that I can make this work with an iterator, but I sure would like to try.
     /// Create a [Tag::List].
     pub fn list<T>(array: T) -> Tag
     where
         T: Into<ListTag>,
     {
         Tag::List(array.into())
+    }
+
+    pub fn experimental_list<T, IT: Iterator<Item = T>>(it: IT) -> Tag
+    where
+        IT: Into<ListTag>
+    {
+        Tag::List(it.into())
     }
 
     /// Create a [Tag::Compound].
@@ -501,7 +508,7 @@ impl From<&str> for Tag {
 /// The [Tag] must be a numeric type, such as [Tag::Byte], or [Tag::Float]. `0` Represents `false` and non-zero represents `true`.
 impl TryFrom<Tag> for bool {
     type Error = ();
-
+    
     /// Tries to create a [bool] from a [Tag] value.
     /// The [Tag] type must be a numeric type, such as [Tag::Byte], [Tag::Int], [Tag::Float], etc.
     /// Returns `false` for zero, and `true` for non-zero.
@@ -539,6 +546,10 @@ impl Display for TagID {
 
 impl Display for Tag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: [ Display for Tag ] format into SNBT.
+        //       But I would like to be able to pretty-print SNBT as well.
+        //       So the solution I would like to go with is to create a formatter
+        //       that is configurable.
         f.write_fmt(format_args!("{:#?}", self))
     }
 }
