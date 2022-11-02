@@ -128,48 +128,6 @@ pub enum DecimalType {
     Double,
 }
 
-impl From<Option<char>> for DecimalType {
-    /// Must be either 'D' or 'F' (case-insensitive) or else it will panic.
-    fn from(ch: Option<char>) -> Self {
-        match ch {
-            Some(ch) => match ch {
-                'f' => DecimalType::Float,
-                'd' => DecimalType::Double,
-                _ => panic!("Must be either 'f' or 'd'."),
-            },
-            None => DecimalType::Double,
-            _ => panic!("Invalid DecimalType"),
-        }
-    }
-}
-
-impl From<Option<char>> for IntegerType {
-    /// Must be one of 'B', 'S', or 'L' (case-insensitive) or else it will panic.
-    fn from(ch: Option<char>) -> Self {
-        match ch {
-            Some(ch) => match ch.to_ascii_lowercase() {
-                'b' => IntegerType::Byte,
-                's' => IntegerType::Short,
-                'l' => IntegerType::Long,
-                _ => panic!("Impossible! I think..."),
-            },
-            None => IntegerType::Int,
-            _ => panic!(),
-        }
-    }
-}
-
-impl From<char> for ArrayType {
-    fn from(ch: char) -> Self {
-        match ch {
-            'B' => ArrayType::Byte,
-            'I' => ArrayType::Int,
-            'L' => ArrayType::Long,
-            _ => panic!("Expected either 'B', 'I', or 'L'."),
-        }
-    }
-}
-
 #[derive(PartialEq, Eq,PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum Token {
     Comma,
@@ -200,7 +158,7 @@ macro_rules! token_api {
                         Self::$name(),
                     )+
                 ))
-                .padded()
+                .padded() // each token may be padded with whitespace
                 .repeated().at_least(1)
                 .then_ignore(end())
                 .collect::<Vec<Token>>()
@@ -210,7 +168,6 @@ macro_rules! token_api {
     };
 }
 // This macro helps to create the lexer.
-// 
 token_api!{
     comma => { just(',').to(Token::Comma).labelled("Comma") }
     colon => { just(':').to(Token::Colon).labelled("Colon") }
@@ -312,7 +269,7 @@ token_api!{
             just('\\')
                 .or(just('/'))
                 .or(just('"'))
-                .or(just('\''))
+                .or(just('\'')) // Look carefully, this is -> '
                 .or(just('b').to('\x08'))
                 .or(just('f').to('\x0C'))
                 .or(just('n').to('\n'))
@@ -397,8 +354,25 @@ fn parser() -> impl Parser<Token, Tag, Error = Simple<Token>> {
             Token::Identifier(data) => data,
             _ => panic!("Impossible state.")
         });
+
     let mut list = Recursive::declare();
     let mut compound = Recursive::declare();
+
+    let tag_match = choice((
+        compound.clone().map(Tag::Compound),
+        list.clone().map(Tag::List),
+        byte.clone().map(Tag::Byte),
+        short.clone().map(Tag::Short),
+        int.clone().map(Tag::Int),
+        long.clone().map(Tag::Long),
+        float.clone().map(Tag::Float),
+        double.clone().map(Tag::Double),
+        bytearray.clone().map(Tag::ByteArray),
+        intarray.clone().map(Tag::IntArray),
+        longarray.clone().map(Tag::LongArray),
+        string.clone().map(Tag::String)
+    ));
+
     macro_rules! list_maker {
         ($([$pattern:expr]),+) => {
             choice::<_,Simple<Token>>((
@@ -412,6 +386,7 @@ fn parser() -> impl Parser<Token, Tag, Error = Simple<Token>> {
             ))
         };
     }
+
     list.define(
         list_maker!{
             [byte.clone()],
@@ -432,25 +407,13 @@ fn parser() -> impl Parser<Token, Tag, Error = Simple<Token>> {
     compound.define(
         string.clone()
             .then_ignore(just(Token::Colon))
-            .then(choice((
-                compound.clone().map(Tag::Compound),
-                list.clone().map(Tag::List),
-                byte.clone().map(Tag::Byte),
-                short.clone().map(Tag::Short),
-                int.clone().map(Tag::Int),
-                long.clone().map(Tag::Long),
-                float.clone().map(Tag::Float),
-                double.clone().map(Tag::Double),
-                bytearray.clone().map(Tag::ByteArray),
-                intarray.clone().map(Tag::IntArray),
-                longarray.clone().map(Tag::LongArray),
-                string.clone().map(Tag::String)
-            )))
+            .then(tag_match.clone())
             .separated_by(just(Token::Comma))
             .allow_trailing()
             .delimited_by(just(Token::OpenBrace), just(Token::CloseBrace))
             .map(crate::Map::from_iter)
     );
+
     choice((
         compound.clone().map(Tag::Compound),
         list.clone().map(Tag::List),
@@ -521,7 +484,7 @@ fn parsetest() {
     }
 }
 
-/// Attempt to parse Minecraft SNBT format.
+/// Attempt to parse Minecraft SNBT format into an NBT [Tag].
 /// ### Example
 /// ```
 /// # use rustnbt::{*,tag::*,io::*,snbt::*};
@@ -541,7 +504,9 @@ fn parsetest() {
 ///     bytearray : [B; true, false, 5b],
 ///     intarray : [I; 3, 5, 1],
 ///     longarray : [L; 3l, 4l, 5l],
-///     list : [4b, 3b, 2b],
+///     lists : [
+///         ["one", "two", 'three', 'four\\nnewline']
+///     ],
 ///     compound : {
 ///         "test" : "The quick brown fox jumps over the lazy dog."
 ///     }
@@ -565,6 +530,99 @@ pub fn parse<S: AsRef<str>>(source: S) -> Result<Tag, ParseError> {
     }
 }
 
+pub enum ArrayDump {
+    /// The entire contents of the array are dumped on a single line.
+    SingleLine,
+}
+
+pub struct DumpSettings {
+    array: ArrayDump,
+}
+
+fn escape_string<S: AsRef<str>>(unescaped: S) -> String {
+    use std::fmt::Write;
+    let unescaped = unescaped.as_ref();
+    macro_rules! match_char {
+        ($buffer:expr, $input:expr; $($tok:tt => $escaped:expr),+) => {
+            match $input {
+                $(
+                    $tok => write!($buffer, "{}", $escaped),
+                )+
+            }
+        };
+        (@$buffer:expr; $lit:literal => $escaped:expr) => {
+            $lit => write!("{}", $escaped)
+        };
+        (@$buffer:expr; $name:ident => $escaped:expr) => {
+            $name => write!("{}", $escaped)
+        };
+    }
+    let mut buffer = String::with_capacity(unescaped.len() + 2);
+    // Escaped string doesn't need quotes.
+    // write!(buffer, "{}", '"');
+    
+    unescaped.chars().fold(&mut buffer, |buffer, ch| {
+        match_char!{buffer, ch;
+            '\t' => "\\t",
+            '\r' => "\\r",
+            '\n' => "\\n",
+            '\\' => "\\\\",
+            '/' => "\\/",
+            '"' => "\\\"",
+            '\'' => "\\'",
+            '\x08' => "\\b",
+            '\x0C' => "\\f",
+            '\0' => "\\0",
+            // TODO: [ Escape Sequences ] Figure out what other escape sequences I should add.
+            other => other
+        };
+        buffer
+    });
+    // Actually, an escaped string wouldn't have quotes.
+    // write!(buffer, "{}", '"');
+    buffer
+}
+
+pub fn dump_snbt<T: AsRef<Tag>>(tag: T) -> Result<String, (/*[PLACEHOLDER]*/)> {
+    use std::fmt::Write;
+    macro_rules! array_writer {
+        ($input:expr; $prefix:literal) => {
+            {
+                let array = $input;
+                let mut buffer = concat!("[", $prefix, ";").to_owned();
+                let stop_index = array.len() - 1;
+                let mut buffer = array.iter().enumerate()
+                    .fold(buffer, |mut buffer: String, (index, value)| {
+                        match index {
+                            stop_index => write!(buffer, "{value}{}",$prefix),
+                            _ => write!(buffer, "{value}{}, ", $prefix),
+                        };
+                        buffer
+                    });
+                write!(buffer, "]");
+                buffer
+            }
+        };
+    }
+    let tag = tag.as_ref();
+    match tag {
+        Tag::Byte(value) => Ok(format!("{}B", value)),
+        Tag::Short(value) => Ok(format!("{}S", value)),
+        Tag::Int(value) => Ok(format!("{}", value)),
+        Tag::Long(value) => Ok(format!("{}L", value)),
+        Tag::Float(value) => Ok(format!("{}F", value)),
+        Tag::Double(value) => Ok(format!("{}D", value)),
+        Tag::ByteArray(array) => Ok(array_writer!(array; "B")),
+        Tag::String(text) => Ok(format!("\"{}\"", escape_string(text))),
+        Tag::List(list) => todo!(),
+        Tag::Compound(map) => todo!(),
+        Tag::IntArray(array) => Ok(array_writer!(array; "I")),
+        Tag::LongArray(array) => Ok(array_writer!(array; "L")),
+        _ => Err(())
+    }
+}
+
+// The spookiest test of them all
 #[cfg(test)]
 fn test_parse<S: AsRef<str>>(source: S) {
     match parse(source) {
@@ -577,38 +635,43 @@ fn test_parse<S: AsRef<str>>(source: S) {
     }
 }
 
+// TEMPORARY: DELETE ME!
 #[test]
 fn foo() {
-    // [warning]: DELETE ME!
     test_parse(r#"
-{
-    byte1 : 0b,
-    byte2 : -10b,
-    byte3 : 127b,
-    short : 69s,
-    int : 420,
-    long : 69420,
-    float : 3f,
-    float2 : 3.14f,
-    double : 4d,
-    double2 : 4.5d,
-    double3 : 5.1,
-    bytearray : [B; true, false, 5b],
-    intarray : [I; 3, 5, 1],
-    longarray : [L; 3l, 4l, 5l],
-    list : [4b, 3b, 2b],
-    compound : {
-        "test" : "The quick brown fox jumps over the lazy dog.",
-        nested : {
-            nested : {
+        {
+            byte1 : 0b,
+            byte2 : -10b,
+            byte3 : 127b,
+            short : 69s,
+            int : 420,
+            long : 69420,
+            float : 3f,
+            float2 : 3.14f,
+            double : 4d,
+            double2 : 4.5d,
+            double3 : 5.1,
+            bytearray : [B; true, false, 5b],
+            intarray : [I; 3, 5, 1],
+            longarray : [L; 3l, 4l, 5l],
+            lists : [
+                [4b, 3b, 2b],
+                [1s, -2s, 5s],
+                [420, 69],
+                ["Hello", 'world']
+            ],
+            compound : {
+                "test" : "The quick brown fox jumps over the lazy dog.",
                 nested : {
                     nested : {
-                        leaf : "This is a secret."
+                        nested : {
+                            nested : {
+                                leaf : "This is a secret."
+                            }
+                        }
                     }
                 }
             }
         }
-    }
-}
     "#);
 }
