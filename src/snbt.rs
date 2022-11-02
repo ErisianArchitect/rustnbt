@@ -362,6 +362,12 @@ fn parser() -> impl Parser<Token, Tag, Error = Simple<Token>> {
         let float = Token::Decimal(DecimalType::Float) => f32;
         let double = Token::Decimal(DecimalType::Double) => f64;
     };
+    let byte = byte.or(
+        choice((
+            filter(|token| matches!(token, Token::Boolean(true))).to(1i8),
+            filter(|token| matches!(token, Token::Boolean(false))).to(0i8),
+        ))
+    );
     macro_rules! array_parsers {
         ($(let $name:ident = [$type:ident; $item:expr];)+) => {
             $(
@@ -390,68 +396,163 @@ fn parser() -> impl Parser<Token, Tag, Error = Simple<Token>> {
             Token::StringLiteral(data) => data,
             Token::Identifier(data) => data,
             _ => panic!("Impossible state.")
-        });        
-    recursive::<Token,Map,_,_,Simple<Token>>(move |compound| {
-        // Match string colon tag
-        macro_rules! list_maker {
-            ($pattern:expr) => {
-                ($pattern)
-                    .separated_by(just(Token::Comma))
-                    .delimited_by(Just(Token::OpenBracket), just(Token::CloseBracket))
-            };
-            ($([$pattern:expr]),+) => {
-                choice::<_,Simple<Token>>((
-                    $(
-                        ($pattern)
-                            .separated_by(just(Token::Comma))
-                            .delimited_by(just(Token::OpenBracket), just(Token::CloseBracket))
-                            .map(ListTag::from),
-                    )+
-                ))
-            };
-        }
-        let list = recursive(|list_pattern| {
-            list_maker!{
-                [byte.clone()],
-                [short.clone()],
-                [int.clone()],
-                [long.clone()],
-                [float.clone()],
-                [double.clone()],
-                [bytearray.clone()],
-                [string.clone()],
-                [list_pattern],
-                [compound.clone()],
-                [intarray.clone()],
-                [longarray.clone()]
-            }
         });
+    let mut list = Recursive::declare();
+    let mut compound = Recursive::declare();
+    macro_rules! list_maker {
+        ($([$pattern:expr]),+) => {
+            choice::<_,Simple<Token>>((
+                $(
+                    ($pattern)
+                        .separated_by(just(Token::Comma))
+                        .allow_trailing()
+                        .delimited_by(just(Token::OpenBracket), just(Token::CloseBracket))
+                        .map(ListTag::from),
+                )+
+            ))
+        };
+    }
+    list.define(
+        list_maker!{
+            [byte.clone()],
+            [short.clone()],
+            [int.clone()],
+            [long.clone()],
+            [float.clone()],
+            [double.clone()],
+            [bytearray.clone()],
+            [string.clone()],
+            [list.clone()],
+            [compound.clone()],
+            [intarray.clone()],
+            [longarray.clone()]
+        }
+    );
+
+    compound.define(
         string.clone()
             .then_ignore(just(Token::Colon))
-            .then(
-                choice((
-                    compound.map(Tag::Compound),
-                    list.map(Tag::List),
-                    byte.map(Tag::Byte),
-                    short.map(Tag::Short),
-                    int.map(Tag::Int),
-                    long.map(Tag::Long),
-                    float.map(Tag::Float),
-                    double.map(Tag::Double),
-                    bytearray.map(Tag::ByteArray),
-                    intarray.map(Tag::IntArray),
-                    longarray.map(Tag::LongArray),
-                    string.map(Tag::String)
-                ))
-            )
+            .then(choice((
+                compound.clone().map(Tag::Compound),
+                list.clone().map(Tag::List),
+                byte.clone().map(Tag::Byte),
+                short.clone().map(Tag::Short),
+                int.clone().map(Tag::Int),
+                long.clone().map(Tag::Long),
+                float.clone().map(Tag::Float),
+                double.clone().map(Tag::Double),
+                bytearray.clone().map(Tag::ByteArray),
+                intarray.clone().map(Tag::IntArray),
+                longarray.clone().map(Tag::LongArray),
+                string.clone().map(Tag::String)
+            )))
             .separated_by(just(Token::Comma))
             .allow_trailing()
             .delimited_by(just(Token::OpenBrace), just(Token::CloseBrace))
             .map(crate::Map::from_iter)
-    })
-    .map(Tag::Compound)
+    );
+    choice((
+        compound.clone().map(Tag::Compound),
+        list.clone().map(Tag::List),
+        byte.clone().map(Tag::Byte),
+        short.clone().map(Tag::Short),
+        int.clone().map(Tag::Int),
+        long.clone().map(Tag::Long),
+        float.clone().map(Tag::Float),
+        double.clone().map(Tag::Double),
+        bytearray.clone().map(Tag::ByteArray),
+        intarray.clone().map(Tag::IntArray),
+        longarray.clone().map(Tag::LongArray),
+        string.clone().map(Tag::String)
+    ))
 }
 
+#[test]
+fn parsetest() {
+    let snbt = r#"
+    {
+        byte1 : 0b,
+        byte2 : -10b,
+        byte3 : 127b,
+        short : 69s,
+        int : 420,
+        long : 69420,
+        float : 3f,
+        float2 : 3.14f,
+        double : 4d,
+        double2 : 4.5d,
+        double3 : 5.1,
+        bytearray : [B; true, false, 5b],
+        intarray : [I; 3, 5, 1],
+        longarray : [L; 3l, 4l, 5l],
+        list : [4b, 3b, 2b],
+        compound : {
+            "test" : "The quick brown fox jumps over the lazy dog."
+        }
+    }
+    "#;
+    if let Ok(Tag::Compound(result)) = parse(snbt) {
+        macro_rules! check_keys {
+            ($($key:literal)+) => {
+                $(
+                    assert!(result.contains_key($key));
+                )+
+            };
+        }
+        check_keys!{
+            "byte1"
+            "byte2"
+            "byte3"
+            "short"
+            "int"
+            "long"
+            "float"
+            "float2"
+            "double"
+            "double3"
+            "bytearray"
+            "intarray"
+            "longarray"
+            "list"
+            "compound"
+        }
+    } else {
+        panic!();
+    }
+}
+
+/// Attempt to parse Minecraft SNBT format.
+/// ### Example
+/// ```
+/// # use rustnbt::{*,tag::*,io::*,snbt::*};
+/// let snbt = r#"
+/// {
+///     byte1 : 0b,
+///     byte2 : -10b,
+///     byte3 : 127b,
+///     short : 69s,
+///     int : 420,
+///     long : 69420,
+///     float : 3f,
+///     float2 : 3.14f,
+///     double : 4d,
+///     double2 : 4.5d,
+///     double3 : 5.1,
+///     bytearray : [B; true, false, 5b],
+///     intarray : [I; 3, 5, 1],
+///     longarray : [L; 3l, 4l, 5l],
+///     list : [4b, 3b, 2b],
+///     compound : {
+///         "test" : "The quick brown fox jumps over the lazy dog."
+///     }
+/// }
+/// "#;
+/// if let Ok(Tag::Compound(result)) = parse(snbt) {
+///     assert!(result.contains_key(&"double".to_string()));
+/// } else {
+///     panic!();
+/// }
+/// ```
 pub fn parse<S: AsRef<str>>(source: S) -> Result<Tag, ParseError> {
     match Token::parse(source) {
         Ok(tokens) => {
@@ -480,25 +581,25 @@ fn test_parse<S: AsRef<str>>(source: S) {
 fn foo() {
     // [warning]: DELETE ME!
     test_parse(r#"
-    {
-        byte1 : 0b,
-        byte2 : -10b,
-        byte3 : 127b,
-        short : 69s,
-        int : 420,
-        long : 69420,
-        float : 3f,
-        float2 : 3.14f,
-        double : 4d,
-        double2 : 4.5d,
-        double3 : 5.1,
-        bytearray : [B; 0b, 3b, 5b],
-        intarray : [I; 3, 5, 1],
-        longarray : [L; 3l, 4l, 5l],
-        list : [4b, 3b, 2b],
-        compound : {
-            "test" : "The quick brown fox jumps over the lazy dog."
-        }
+{
+    byte1 : 0b,
+    byte2 : -10b,
+    byte3 : 127b,
+    short : 69s,
+    int : 420,
+    long : 69420,
+    float : 3f,
+    float2 : 3.14f,
+    double : 4d,
+    double2 : 4.5d,
+    double3 : 5.1,
+    bytearray : [B; true, false, 5b],
+    intarray : [I; 3, 5, 1],
+    longarray : [L; 3l, 4l, 5l],
+    list : [4b, 3b, 2b],
+    compound : {
+        "test" : "The quick brown fox jumps over the lazy dog."
     }
+}
     "#);
 }
