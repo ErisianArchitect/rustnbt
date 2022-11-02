@@ -23,7 +23,6 @@ For [Tag::List], the tag type for the list is determined by the type of the firs
 
 use crate::*;
 use crate::tag::*;
-use chumsky::combinator::Repeated;
 use chumsky::prelude::*;
 use chumsky::primitive::{
     Container,
@@ -31,10 +30,8 @@ use chumsky::primitive::{
     NoneOf,
 };
 use chumsky::Error;
-use chumsky::text::Character;
-use core::panic;
 use std::collections::HashSet;
-use std::result;
+use std::fmt::{Write, Display};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
@@ -144,6 +141,14 @@ pub enum Token {
     StringLiteral(String),
 }
 
+// I made it easier to make the lexer. Since there is a lot of boilerplate involved, I wrote
+// a macro that allows me to bypass writing all the error-prone boilerplate.
+// It also allows me to generate a parse function that will parse in the order that I define
+// sub-parsers.
+// So the syntax for the parsers is similar to the syntax for match arms.
+// First you have the name that you want to apply to the function, then "=>", then a block
+// for the parser:
+//     name => { /* parser initialization */ }
 macro_rules! token_api {
     ($($name:ident => $block:block)+) => {
         impl Token {
@@ -160,14 +165,14 @@ macro_rules! token_api {
                 ))
                 .padded() // each token may be padded with whitespace
                 .repeated().at_least(1)
-                .then_ignore(end())
+                .then_ignore(end()) // Force read until end.
                 .collect::<Vec<Token>>()
                 .parse(source.as_ref())
             }
         }
     };
 }
-// This macro helps to create the lexer.
+
 token_api!{
     comma => { just(',').to(Token::Comma).labelled("Comma") }
     colon => { just(':').to(Token::Colon).labelled("Colon") }
@@ -295,7 +300,9 @@ token_api!{
     }
 }
 
+/// Returns a parser that takes [Token] as input and returns a [Tag].
 fn parser() -> impl Parser<Token, Tag, Error = Simple<Token>> {
+    // Macros rule!
     macro_rules! num_parsers {
         ($(let $name:ident = Token::$token_type:ident($subtype:path) => $type:ty;)+) => {
             $(
@@ -514,7 +521,47 @@ fn escape_string<S: AsRef<str>>(unescaped: S) -> String {
     })
 }
 
-pub fn dump_snbt<T: AsRef<Tag>>(tag: T) -> Result<String, (/*[PLACEHOLDER]*/)> {
+// Wrapper type for creating display functions for SNBT.
+struct SnbtWrapper<T> {
+    value: T,
+    indent: usize,
+}
+
+impl<T> SnbtWrapper<T> {
+    fn new(value: T, indent: usize) -> Self {
+        Self {
+            value,
+            indent,
+        }
+    }
+
+    fn indent<NT>(&self, value: NT) -> SnbtWrapper<NT> {
+        SnbtWrapper::new(value, self.indent + 1)
+    }
+}
+
+impl Display for SnbtWrapper<i8> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}B", self))
+    }
+}
+
+impl Display for SnbtWrapper<Vec<i8>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+fn indented_write<W: Write, S: AsRef<str>, T: std::fmt::Display>(buffer: &mut W, indent: usize, indent_string: S, value: T) {
+    let indent_string = indent_string.as_ref();
+    (0..indent)
+        .for_each(|_| { write!(buffer, "{indent_string}"); });
+    write!(buffer, "{value}");
+}
+
+/// This function will dump the provided [Tag] as a String.
+/// It will 
+pub fn dump_snbt<T: AsRef<Tag>>(tag: T) -> String {
     use std::fmt::Write;
     macro_rules! array_writer {
         ($input:expr; $prefix:literal) => {
@@ -537,19 +584,20 @@ pub fn dump_snbt<T: AsRef<Tag>>(tag: T) -> Result<String, (/*[PLACEHOLDER]*/)> {
     }
     let tag = tag.as_ref();
     match tag {
-        Tag::Byte(value) => Ok(format!("{}B", value)),
-        Tag::Short(value) => Ok(format!("{}S", value)),
-        Tag::Int(value) => Ok(format!("{}", value)),
-        Tag::Long(value) => Ok(format!("{}L", value)),
-        Tag::Float(value) => Ok(format!("{}F", value)),
-        Tag::Double(value) => Ok(format!("{}D", value)),
-        Tag::ByteArray(array) => Ok(array_writer!(array; "B")),
-        Tag::String(text) => Ok(format!("\"{}\"", escape_string(text))),
+        Tag::Byte(value) => format!("{}B", value),
+        Tag::Short(value) => format!("{}S", value),
+        Tag::Int(value) =>format!("{}", value),
+        Tag::Long(value) =>format!("{}L", value),
+        Tag::Float(value) =>format!("{}F", value),
+        Tag::Double(value) =>format!("{}D", value),
+        Tag::ByteArray(array) =>array_writer!(array; "B"),
+        Tag::String(text) =>format!("\"{}\"", escape_string(text)),
         Tag::List(list) => todo!(),
         Tag::Compound(map) => todo!(),
-        Tag::IntArray(array) => Ok(array_writer!(array; "I")),
-        Tag::LongArray(array) => Ok(array_writer!(array; "L")),
-        _ => Err(())
+        Tag::IntArray(array) =>array_writer!(array; "I"),
+        Tag::LongArray(array) =>array_writer!(array; "L"),
+        #[cfg(feature = "extensions")]
+        _ => "\"<Exentions can't be converted to SNBT.>\"",
     }
 }
 
