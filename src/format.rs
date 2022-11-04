@@ -3,11 +3,40 @@ The format module is for formatting NBT Tags into SNBT, which is a modified
 version of JSON.
 "]
 
-use std::fmt::{Write, Display, Debug};
+use std::fmt::{Write, Display, Debug, Pointer};
+
+fn escape_string<S: AsRef<str>, W: Write>(writer: &mut W, unescaped: S) -> std::fmt::Result {
+    // Macros make the whole world better!
+    macro_rules! match_char {
+        ($buffer:expr, $input:expr; $($tok:tt => $escaped:expr),+) => {
+            match $input {
+                $(
+                    $tok => write!($buffer, "{}", $escaped),
+                )+
+            }
+        };
+    }
+    unescaped.as_ref().chars().try_for_each(|ch| {
+        match_char!{writer, ch;
+            '\t' => "\\t",
+            '\r' => "\\r",
+            '\n' => "\\n",
+            '\\' => "\\\\",
+            '/' => "\\/",
+            '"' => "\\\"",
+            '\'' => "\\'",
+            '\x08' => "\\b",
+            '\x0C' => "\\f",
+            '\0' => "\\0",
+            // TODO: [ Escape Sequences ] Figure out what other escape sequences I should add.
+            other => other
+        }
+    })
+}
 
 /// Space count constrained to powers of two with an upper-bound of 32 and a lower bound of 1.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-#[repr(usize)]
+#[repr(u8)]
 pub enum SpaceCount {
     One = 1,
     Two = 2,
@@ -18,6 +47,13 @@ pub enum SpaceCount {
     /// Come on! 32? You do not need this many spaces! But fine.
     /// Have it your way. Here are your 32 spaces!
     ThirtyTwo = 32,
+}
+
+impl Default for SpaceCount {
+    /// Returns [SpaceCount::Four].
+    fn default() -> Self {
+        Self::Four
+    }
 }
 
 impl Display for SpaceCount {
@@ -41,16 +77,35 @@ impl From<SpaceCount> for usize {
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-enum Indent {
+pub enum Indent {
+    /// Only a single tab.
     Tabs,
     Spaces(SpaceCount),
 }
 
+impl Default for Indent {
+    /// Returns [Indent::Spaces]\([SpaceCount::Four]\)
+    fn default() -> Self {
+        Self::four_spaces()
+    }
+}
+
 impl Indent {
 
-    /// This is a common tab-width, so I figured I would add it as a shortcut.
-    pub fn four_spaces() -> Self {
+    pub const fn space() -> Self {
+        Self::Spaces(SpaceCount::One)
+    }
+
+    pub const fn two_spaces() -> Self {
+        Self::Spaces(SpaceCount::Two)
+    }
+
+    pub const fn four_spaces() -> Self {
         Self::Spaces(SpaceCount::Four)
+    }
+
+    pub const fn eight_spaces() -> Self {
+        Self::Spaces(SpaceCount::Eight)
     }
 }
 
@@ -63,44 +118,167 @@ impl Display for Indent {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Indentation {
+    indent: Indent,
+    // usize just in case someone is really determined to write out some deeply nested structures for whatever reason.
+    level: usize,
+}
+
+impl Indentation {
+    pub const fn new(indent: Indent) -> Self {
+        Self {
+            indent,
+            level: 0,
+        }
+    }
+
+    pub const fn level(mut self, level: usize) -> Self {
+        self.level = level;
+        self
+    }
+
+    pub const fn space() -> Self {
+        Self::new(Indent::space())
+    }
+
+    pub const fn two_spaces() -> Self {
+        Self::new(Indent::two_spaces())
+    }
+
+    pub const fn four_spaces() -> Self {
+        Self::new(Indent::four_spaces())
+    }
+
+    pub const fn eight_spaces() -> Self {
+        Self::new(Indent::eight_spaces())
+    }
+
+    pub const fn spaces(count: SpaceCount) -> Self {
+        Self::new(Indent::Spaces(count))
+    }
+
+    pub const fn tabs() -> Self {
+        Self::new(Indent::Tabs)
+    }
+
+    pub fn indent(self) -> Self {
+        Self {
+            indent: self.indent,
+            level: self.level + 1,
+        }
+    }
+}
+
+impl Display for Indentation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        (0..self.level)
+            .try_for_each(|_| {
+                write!(f, "{}", self.indent)
+            })
+    }
+}
+
+trait NbtDisplay {
+    fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
+    fn wrap(self) -> DisplayWrapper<Self> where Self : Sized {
+        DisplayWrapper(self)
+    }
+
+    fn wrap_borrow(&self) -> DisplayWrapper<&Self> {
+        DisplayWrapper(self)
+    }
+}
+
+/// Wraps a type that might implement [Display] allowing for fine tuning of displaying of the value.
+struct DisplayWrapper<T>(T) ;
+
+macro_rules! display_wrappers {
+    ($($type:ty => {}$($suffix:ident)?;)+) => {
+        $(
+            impl NbtDisplay for $type {
+                fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, concat!("{}"$(, stringify!($suffix))?), self)
+                }
+            }
+        )+
+    };
+}
+
+display_wrappers!{
+    i8 => {}B;
+    i16 => {}S;
+    i32 => {};
+    i64 => {}L;
+    f32 => {}F;
+    f64 => {}D;
+}
+
+impl NbtDisplay for String {
+    fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "\"")?;
+        escape_string(f, self)?;
+        write!(f, "\"")
+    }
+}
+
+impl NbtDisplay for SnbtWrapper<&Vec<i8>> {
+    fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        
+    }
+}
+
+impl<T: NbtDisplay> NbtDisplay for &T {
+    fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        T::fmt_nbt(*self, f)
+    }
+}
+
+impl<T: NbtDisplay> Display for DisplayWrapper<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt_nbt(f)
+    }
+}
+
 // Wrapper type for creating display functions for SNBT.
 struct SnbtWrapper<T> {
     value: T,
-    indent_level: usize,
-    indent: Indent,
+    indentation: Indentation,
 }
 
 impl<T> SnbtWrapper<T> {
 
     pub fn new(value: T) -> Self {
-        Self::indented(value, 0, Indent::Spaces(SpaceCount::Four))
+        Self::indented(value, Indentation::spaces(SpaceCount::Four))
     }
 
-    pub fn indented(value: T, indent_level: usize, indent: Indent) -> Self {
+    pub fn indented(value: T, indentation: Indentation) -> Self {
         Self {
             value,
-            indent_level,
-            indent,
+            indentation,
         }
     }
 
     pub fn indent<NT>(&self, value: NT) -> SnbtWrapper<NT> {
-        SnbtWrapper::indented(value, self.indent_level + 1, self.indent)
+        SnbtWrapper::indented(value, self.indentation.indent())
     }
 
-    fn write_indent<W: std::fmt::Write>(&self, writer: &mut W) {
-        (0..self.indent_level)
-            .for_each(|_| {
-                write!(writer, "{}", self.indent);
-            });
+    fn write_indent<W: std::fmt::Write>(&self, writer: &mut W) -> std::fmt::Result {
+        write!(writer, "{}", self.indentation)
     }
 
+}
+
+impl<T: Display> Display for SnbtWrapper<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.indentation, self.value)
+    }
 }
 
 impl<T: Display> SnbtWrapper<T> {
     pub fn write_indented_value<W: std::fmt::Write>(&self, writer: &mut W) {
         self.write_indent(writer);
-        write!(writer, "{}", self.value);
+        write!(writer, "{}{}", self.indentation, self.value);
     }
 }
 
@@ -141,4 +319,28 @@ impl Write for NbtFormatter {
 
 trait FormatNbt: Sized {
     fn format_nbt<W: Write>(&self, writer: W);
+}
+
+
+#[test]
+fn just_do_it() {
+trait Foo {
+    fn print(&self);
+}
+
+impl Foo for String {
+    fn print(&self) {
+        println!("Final: {}", self);
+    }
+}
+
+impl<T: Foo + Display> Foo for &T {
+    fn print(&self) {
+        println!("Deref: {}", self);
+        T::print(self)
+    }
+}
+let bar = "Hello, world!".to_string();
+let drink = &&&&&&&&&&bar;
+drink.print();
 }
