@@ -520,48 +520,55 @@ fn escape_string<S: AsRef<str>>(unescaped: S) -> String {
     })
 }
 
-// Wrapper type for creating display functions for SNBT.
-struct SnbtWrapper<T> {
-    value: T,
-    indent: usize,
-}
-
-impl<T> SnbtWrapper<T> {
-    fn new(value: T, indent: usize) -> Self {
-        Self {
-            value,
-            indent,
-        }
-    }
-
-    fn indent<NT>(&self, value: NT) -> SnbtWrapper<NT> {
-        SnbtWrapper::new(value, self.indent + 1)
-    }
-}
-
-impl Display for SnbtWrapper<i8> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}B", self))
-    }
-}
-
-impl Display for SnbtWrapper<Vec<i8>> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-}
-
-fn indented_write<W: Write, S: AsRef<str>, T: std::fmt::Display>(buffer: &mut W, indent: usize, indent_string: S, value: T) {
-    let indent_string = indent_string.as_ref();
-    (0..indent)
-        .for_each(|_| { write!(buffer, "{indent_string}"); });
-    write!(buffer, "{value}");
-}
-
 /// This function will dump the provided [Tag] as a String.
-/// It will 
-pub fn dump_snbt<T: AsRef<Tag>>(tag: T) -> String {
+/// Since the extension tags are not part of the Minecraft spec, they are
+/// also not part of this implementation of SNBT.
+/// That means that tags that are not part of the Minecraft format will be
+/// rendered differently.
+#[cfg(feature = "extensions")]
+pub fn dump_snbt<T: AsRef<Tag>, F: Fn(&Tag) -> String>(tag: T, unrecognized: F) -> String {
     use std::fmt::Write;
+    macro_rules! array_writer {
+        ($input:expr; $prefix:literal) => {
+            {
+                let array = $input;
+                let mut buffer = concat!("[", $prefix, ";").to_owned();
+                let stop_index = array.len() - 1;
+                let mut buffer = array.iter().enumerate()
+                    .fold(buffer, |mut buffer: String, (index, value)| {
+                        match index {
+                            stop_index => write!(buffer, "{value}{}",$prefix),
+                            _ => write!(buffer, "{value}{}, ", $prefix),
+                        };
+                        buffer
+                    });
+                write!(buffer, "]");
+                buffer
+            }
+        };
+    }
+    let tag = tag.as_ref();
+    match tag {
+        Tag::Byte(value) => format!("{}B", value),
+        Tag::Short(value) => format!("{}S", value),
+        Tag::Int(value) =>format!("{}", value),
+        Tag::Long(value) =>format!("{}L", value),
+        Tag::Float(value) =>format!("{}F", value),
+        Tag::Double(value) =>format!("{}D", value),
+        Tag::ByteArray(array) =>array_writer!(array; "B"),
+        Tag::String(text) =>format!("\"{}\"", escape_string(text)),
+        Tag::List(list) => todo!(),
+        Tag::Compound(map) => todo!(),
+        Tag::IntArray(array) =>array_writer!(array; "I"),
+        Tag::LongArray(array) =>array_writer!(array; "L"),
+        _ => "\"<Exentions can't be converted to SNBT.>\"",
+    }
+}
+
+#[cfg(not(feature = "extensions"))]
+pub fn dump_snbt<T: AsRef<Tag>, F: Fn(&Tag,&mut String)>(tag: T) -> String {
+    use std::fmt::Write;
+
     macro_rules! array_writer {
         ($input:expr; $prefix:literal) => {
             {
