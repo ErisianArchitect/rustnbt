@@ -78,7 +78,7 @@ macro_rules! tag_data {
 
         impl TagID {
             #[doc = "PascalCase title of this [TagID]."]
-            pub fn title(self) -> &'static str {
+            pub const fn title(self) -> &'static str {
                 match self {
                     $(
                         $(#[$attr])?
@@ -88,7 +88,7 @@ macro_rules! tag_data {
             }
 
             #[doc = "In the format of `TAG_TagTitle`."] 
-            pub fn name(self) -> &'static str {
+            pub const fn name(self) -> &'static str {
                 match self {
                     $(
                         $(#[$attr])?
