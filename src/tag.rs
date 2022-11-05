@@ -332,7 +332,6 @@ where
 
 impl TagID {
     /// Returns this TagID as an isize.
-    /// (Tag::Unsupported has a value of -1)
     pub fn value(self) -> isize {
         self as isize
     }
@@ -545,4 +544,12 @@ mod tests {
         ]));
     }
 
+}
+
+#[test]
+fn u8_test() {
+    let value = 200u8;
+    let signed: i8 = value as i8;
+    println!("  Signed: {signed}");
+    println!("Reversed: {}", signed as u8);
 }
