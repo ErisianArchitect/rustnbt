@@ -14,12 +14,8 @@
 ///     //          $title: This is the title of this NBT type. This is different from the type name, and is used as the names of 
 ///     //                  variants in the TagID and Tag enums.
 ///     //           $type: The type that the tag holds and serializes/deserializes.
-///     //        $subtype: The category that this tag type exists in. Either: scalar, array, or other.
-///     //         $origin: This value will either be "minecraft" or "extension".
-///     //                  This is used to control whether or not code is emitted depending on if the "extensions" feature is enabled.
 ///     //           $impl: These are trait implementations that are applied to the types. These traits do not do anything besides act as markers.
-///     //           $attr: These are the attributes applied to code. This is so that we can enable or disable extensions.
-///     ($($id:literal $title:ident $type:path [$($impl:path),*] [$($attr:meta)?])+) => {
+///     ($($id:literal $title:ident $type:path [$($impl:path),*])+) => {
 ///         // generation code here.
 ///     }
 /// }
@@ -27,39 +23,22 @@
 /// tag_info_table!(read_table);
 /// ```
 #[macro_export]
-// [IMPORTANT!] If this table is updated, search for `[table update]` within the project to find places that the code might need to be updated.
 macro_rules! tag_info_table {
     ($macro:ident) => {
         $macro! {
-//ID    Title           Type                                    [Implementation                  ] [Attribute                  ]
-0001    Byte            i8                                      [$crate::family::Primitive       ] [/*-[No Attribute]------- */]
-0002    Short           i16                                     [$crate::family::NonBytePrimitive] [/*-[No Attribute]------- */]
-0003    Int             i32                                     [$crate::family::NonBytePrimitive] [/*-[No Attribute]------- */]
-0004    Long            i64                                     [$crate::family::NonBytePrimitive] [/*-[No Attribute]------- */]
-0005    Float           f32                                     [$crate::family::NonBytePrimitive] [/*-[No Attribute]------- */]
-0006    Double          f64                                     [$crate::family::NonBytePrimitive] [/*-[No Attribute]------- */]
-0007    ByteArray       std::vec::Vec::<i8>                     [$crate::family::NonByte         ] [/*-[No Attribute]------- */]
-0008    String          std::string::String                     [$crate::family::NonByte         ] [/*-[No Attribute]------- */]
-0009    List            $crate::tag::ListTag                    [$crate::family::NonByte         ] [/*-[No Attribute]------- */]
-0010    Compound        $crate::Map                             [$crate::family::NonByte         ] [/*-[No Attribute]------- */]
-0011    IntArray        std::vec::Vec::<i32>                    [$crate::family::NonByte         ] [/*-[No Attribute]------- */]
-0012    LongArray       std::vec::Vec::<i64>                    [$crate::family::NonByte         ] [/*-[No Attribute]------- */]
-0128    UByte           u8                                      [$crate::family::Primitive       ] [cfg(feature = "extensions")]
-0129    UShort          u16                                     [$crate::family::NonBytePrimitive] [cfg(feature = "extensions")]
-0130    UInt            u32                                     [$crate::family::NonBytePrimitive] [cfg(feature = "extensions")]
-0131    ULong           u64                                     [$crate::family::NonBytePrimitive] [cfg(feature = "extensions")]
-0132    Bytes           std::vec::Vec::<u8>                     [$crate::family::NonByte         ] [cfg(feature = "extensions")]
-0133    ShortArray      std::vec::Vec::<i16>                    [$crate::family::NonByte         ] [cfg(feature = "extensions")]
-0134    UShortArray     std::vec::Vec::<u16>                    [$crate::family::NonByte         ] [cfg(feature = "extensions")]
-0135    UIntArray       std::vec::Vec::<u32>                    [$crate::family::NonByte         ] [cfg(feature = "extensions")]
-0136    ULongArray      std::vec::Vec::<u64>                    [$crate::family::NonByte         ] [cfg(feature = "extensions")]
-0137    I128            i128                                    [$crate::family::NonBytePrimitive] [cfg(feature = "extensions")]
-0138    U128            u128                                    [$crate::family::NonBytePrimitive] [cfg(feature = "extensions")]
-0139    I128Array       std::vec::Vec::<i128>                   [$crate::family::NonByte         ] [cfg(feature = "extensions")]
-0140    U128Array       std::vec::Vec::<u128>                   [$crate::family::NonByte         ] [cfg(feature = "extensions")]
-0141    StringArray     std::vec::Vec::<std::string::String>    [$crate::family::NonByte         ] [cfg(feature = "extensions")]
-0142    FloatArray      std::vec::Vec::<f32>                    [$crate::family::NonByte         ] [cfg(feature = "extensions")]
-0143    DoubleArray     std::vec::Vec::<f64>                    [$crate::family::NonByte         ] [cfg(feature = "extensions")]
+//ID    Title           Type                                    [Implementation                  ]
+0001    Byte            i8                                      [$crate::family::Primitive       ]
+0002    Short           i16                                     [$crate::family::NonBytePrimitive]
+0003    Int             i32                                     [$crate::family::NonBytePrimitive]
+0004    Long            i64                                     [$crate::family::NonBytePrimitive]
+0005    Float           f32                                     [$crate::family::NonBytePrimitive]
+0006    Double          f64                                     [$crate::family::NonBytePrimitive]
+0007    ByteArray       std::vec::Vec::<i8>                     [$crate::family::NonByte         ]
+0008    String          std::string::String                     [$crate::family::NonByte         ]
+0009    List            $crate::tag::ListTag                    [$crate::family::NonByte         ]
+0010    Compound        $crate::Map                             [$crate::family::NonByte         ]
+0011    IntArray        std::vec::Vec::<i32>                    [$crate::family::NonByte         ]
+0012    LongArray       std::vec::Vec::<i64>                    [$crate::family::NonByte         ]
         }
     };
 }

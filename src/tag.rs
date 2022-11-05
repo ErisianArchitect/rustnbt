@@ -39,7 +39,7 @@ pub trait DecodeNbt: Sized {
 /// This is where a majority of the generation for the code in this module happens.
 /// It utilizes the table in `\src\table.rs`.
 macro_rules! tag_data {
-    ($($id:literal $title:ident $type:path [$($impl:path)?] [$($attr:meta)?])+) => {
+    ($($id:literal $title:ident $type:path [$($impl:path)?])+) => {
         #[doc = "
         The NBT Tag enum.<br>
         To see what types are supported, take a look at the table in [tag_info_table] located in [`/src/table.rs`].
@@ -51,7 +51,6 @@ macro_rules! tag_data {
                 // a nothing value, but I don't think that would be useful at all.
                 // I'm just writing this comment here in case future me has the same temptation and actually
                 // wishes to follow through: Don't bother. It's probably not really necessary.
-                $(#[$attr])?
                 $title($type),
             )+
         }
@@ -60,7 +59,6 @@ macro_rules! tag_data {
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
         pub enum TagID {
             $(
-                $(#[$attr])?
                 $title = $id,
             )+
         }
@@ -71,7 +69,6 @@ macro_rules! tag_data {
             #[doc = "Represents a ListTag without any elements."]
             Empty,
             $(
-                $(#[$attr])?
                 $title(Vec<$type>),
             )+
         }
@@ -81,7 +78,6 @@ macro_rules! tag_data {
             pub const fn title(self) -> &'static str {
                 match self {
                     $(
-                        $(#[$attr])?
                         TagID::$title => stringify!($title),
                     )+
                 }
@@ -91,7 +87,6 @@ macro_rules! tag_data {
             pub const fn name(self) -> &'static str {
                 match self {
                     $(
-                        $(#[$attr])?
                         TagID::$title => concat!("TAG_", stringify!($title)),
                     )+
                 }
@@ -103,7 +98,6 @@ macro_rules! tag_data {
             pub fn id(&self) -> TagID {
                 match self {
                     $(
-                        $(#[$attr])?
                         Tag::$title(_) => TagID::$title,
                     )+
                 }
@@ -116,7 +110,6 @@ macro_rules! tag_data {
                 match self {
                     ListTag::Empty => TagID::Byte,
                     $(
-                        $(#[$attr])?
                         ListTag::$title(_) => TagID::$title,
                     )+
                 }
@@ -129,7 +122,6 @@ macro_rules! tag_data {
             pub fn len(&self) -> usize {
                 match self {
                     $(
-                        $(#[$attr])?
                         ListTag::$title(list) => list.len(),
                     )+
                     ListTag::Empty => 0,
@@ -148,7 +140,6 @@ macro_rules! tag_data {
             fn try_from(value: u8) -> Result<Self,Self::Error> {
                 match value {
                     $(
-                        $(#[$attr])?
                         $id => Ok(TagID::$title),
                     )+
                     0 => Err($crate::NbtError::End),
@@ -159,7 +150,6 @@ macro_rules! tag_data {
 
         $(
             // NbtType implementations for all NBT representable types.
-            $(#[$attr])?
             impl NbtType for $type {
                 #[doc = "The tag type ID."]
                 const ID: TagID = TagID::$title;
@@ -173,7 +163,6 @@ macro_rules! tag_data {
             // It's likely that you may want to keep the old value around rather
             // than consuming it and converting it to NBT. This is implemented for reference
             // types for that exact scenario.
-            $(#[$attr])?
             impl EncodeNbt for &$type {
                 #[doc = "Encodes self as an NBT tag."]
                 fn encode_nbt(self) -> Tag {
@@ -187,7 +176,6 @@ macro_rules! tag_data {
             // not be forced to do a clone, so you're allowed to pass in the Tag to be consumed
             // so that you can avoid that clone, otherwise you can clone the tag yourself
             // before decoding it.
-            $(#[$attr])?
             impl DecodeNbt for $type {
                 type Error = ();
                 #[doc = "Attempts to decode the tag."]
@@ -208,13 +196,11 @@ macro_rules! tag_data {
             //     // ...
             // }
             // ```
-            $(#[$attr])?
             $(
                 impl $impl for $type {}
             )?
 
             // Create a Tag from its representational type.
-            $(#[$attr])?
             impl From<$type> for Tag {
                 #[doc = concat!("Create a [Tag::", stringify!($title), "] from its representational type.")]
                 fn from(value: $type) -> Self {
@@ -223,7 +209,6 @@ macro_rules! tag_data {
             }
 
             // Create a ListTag from a Vector
-            $(#[$attr])?
             impl From<Vec<$type>> for ListTag {
                 #[doc = concat!("Create a [ListTag::", stringify!($title), "] from its representational vector type.")]
                 fn from(value: Vec<$type>) -> Self {
@@ -232,7 +217,6 @@ macro_rules! tag_data {
             }
 
             // Create a ListTag from a slice.
-            $(#[$attr])?
             impl From<&[$type]> for ListTag {
                 #[doc = concat!("Create a [ListTag::", stringify!($title), "] from its representational slice type.")]
                 fn from(value: &[$type]) -> Self {
@@ -241,7 +225,6 @@ macro_rules! tag_data {
             }
 
             // Try to recreate a representational type from an NBT Tag.
-            $(#[$attr])?
             impl TryFrom<Tag> for $type {
                 type Error = ();
                 #[doc = "Tries to recreate a representational type from a [Tag]."]
@@ -441,12 +424,6 @@ impl Tag {
         Tag::IntArray(it.into_iter().map(T::into).collect())
     }
 
-    #[cfg(feature = "extensions")]
-    /// Create a [Tag::ShortArray] from the provided iterable.
-    pub fn shortarray<T: Into<i16>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
-        Tag::ShortArray(it.into_iter().map(T::into).collect())
-    }
-
     /// Create a [Tag::LongArray] from the provided iterable.
     pub fn longarray<T: Into<i64>, IT: IntoIterator<Item = T>>(it: IT) -> Tag {
         Tag::LongArray(it.into_iter().map(T::into).collect())
@@ -459,20 +436,12 @@ impl Tag {
     
     // TODO: [ fn Tag::list() ]I don't think that I can make this work with an iterator, but I sure would like to try.
     /// Create a [Tag::List].
-    pub fn list<T>(array: T) -> Tag
-    where
-        T: Into<ListTag>,
-    {
+    pub fn list<T>(array: T) -> Tag where T: Into<ListTag> {
         Tag::List(array.into())
     }
 
     /// Create a [Tag::Compound].
-    pub fn compound<S, T, IT>(items: IT) -> Tag
-    where
-        S: Into<String>,
-        T: Into<Tag>,
-        IT: IntoIterator<Item = (S, T)>,
-    {
+    pub fn compound<T,IT,S>(items: IT) -> Tag where S: Into<String>, T: Into<Tag>, IT: IntoIterator<Item = (S, T)> {
         let mut result = Map::new();
         items.into_iter().for_each(|(name, tag)| {
             result.insert(name.into(), tag.into());
@@ -513,19 +482,6 @@ impl TryFrom<Tag> for bool {
             Tag::Long(inner) => !inner.is_zero(),
             Tag::Float(inner) => !inner.is_zero(),
             Tag::Double(inner) => !inner.is_zero(),
-            #[cfg(feature = "extensions")]
-            Tag::UByte(inner) => !inner.is_zero(),
-            #[cfg(feature = "extensions")]
-            Tag::UShort(inner) => !inner.is_zero(),
-            #[cfg(feature = "extensions")]
-            Tag::UInt(inner) => !inner.is_zero(),
-            #[cfg(feature = "extensions")]
-            Tag::ULong(inner) => !inner.is_zero(),
-            #[cfg(feature = "extensions")]
-            Tag::I128(inner) => !inner.is_zero(),
-            #[cfg(feature = "extensions")]
-            Tag::U128(inner) => !inner.is_zero(),
-            // [table update]
             _ => return Err(()),
         })
     }

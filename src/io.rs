@@ -72,40 +72,8 @@ pub trait NbtWrite {
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError>;
 }
 
-/// Blanket implementations for reading and writing primitives (scalar types).
-macro_rules! primitive_table {
-    ($($primitive:ident)+) => {
-        $(
-            impl NbtRead for $primitive {
-                #[doc ="Attempts to read primitive from reader. This will read in Big-Endian byte-order."]
-                fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
-                    let mut buf = [0u8; std::mem::size_of::<$primitive>()];
-                    reader.read_exact(&mut buf)?;
-                    Ok(Self::from_be_bytes(buf))
-                }
-            }
-
-            impl NbtWrite for $primitive {
-                #[doc = "Attempts to write primitive to writer. This will write in Big-Endian byte-order."]
-                fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
-                    Ok(writer.write(self.to_be_bytes().as_slice())?)
-                }
-            }
-        )+
-    };
-}
-
-/// These are the primitive types that will be read and write in Big-Endian order.
-primitive_table![
-    i8 u8
-    i16 u16
-    i32 u32 f32
-    i64 u64 f64
-    i128 u128
-];
-
 macro_rules! tag_io {
-    ($($id:literal $title:ident $type:path [$($impl:path)?] [$($attr:meta)?])+) => {
+    ($($id:literal $title:ident $type:path [$($impl:path)?])+) => {
         #[doc = "
         This function is the bread and butter of serialization of NBT data.<br>
         This function will write the [Tag]'s ID, the provided [Tag] Name, and then the tag itself.
@@ -115,7 +83,6 @@ macro_rules! tag_io {
         pub fn write_named_tag<W: Write, S: AsRef<str>>(writer: &mut W, tag: &Tag, name: S) -> Result<usize, NbtError> {
             match tag {
                 $(
-                    $(#[$attr])?
                     Tag::$title(tag) => {
                         let id_size = TagID::$title.nbt_write(writer)?;
                         let key_size = name.as_ref().nbt_write(writer)?;
@@ -140,7 +107,6 @@ macro_rules! tag_io {
             let name = String::nbt_read(reader)?;
             let tag = match id {
                 $(
-                    $(#[$attr])?
                     TagID::$title => {
                         Tag::$title(<$type>::nbt_read(reader)?)
                     }
@@ -154,7 +120,6 @@ macro_rules! tag_io {
             fn nbt_size(&self) -> usize {
                 match self {
                     $(
-                        $(#[$attr])?
                         Tag::$title(tag) => tag.nbt_size(),
                     )+
                 }
@@ -166,7 +131,6 @@ macro_rules! tag_io {
             fn nbt_size(&self) -> usize {
                 match self {
                     $(
-                        $(#[$attr])?
                         ListTag::$title(list) => list.iter().map(|item| item.nbt_size()).sum::<usize>() + 5,
                     )+
                     ListTag::Empty => 5,
@@ -184,7 +148,6 @@ macro_rules! tag_io {
                 }
                 match id {
                     $(
-                        $(#[$attr])?
                         Ok(TagID::$title) => {
                             let length = u32::nbt_read(reader)?;
                             Ok(ListTag::$title(
@@ -208,7 +171,6 @@ macro_rules! tag_io {
             fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize,NbtError> {
                 match self {
                     $(
-                        $(#[$attr])?
                         ListTag::$title(list) => {
                             TagID::$title.nbt_write(writer)?;
                             list.nbt_write(writer).map(|size| size + 1)
@@ -239,7 +201,6 @@ macro_rules! tag_io {
                     let name = String::nbt_read(reader)?;
                     let tag = match id {
                         $(
-                            $(#[$attr])?
                             Ok(TagID::$title) => Tag::$title(<$type>::nbt_read(reader)?),
                         )+
                         Err(err) => return Err(err),
@@ -270,7 +231,6 @@ macro_rules! tag_io {
             fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
                 match self {
                     $(
-                        $(#[$attr])?
                         Tag::$title(tag) => tag.nbt_write(writer),
                     )+
                 }
@@ -278,6 +238,38 @@ macro_rules! tag_io {
         }
     };
 }
+
+/// Blanket implementations for reading and writing primitives (scalar types).
+macro_rules! primitive_io {
+    ($($primitive:ident)+) => {
+        $(
+            impl NbtRead for $primitive {
+                #[doc ="Attempts to read primitive from reader. This will read in Big-Endian byte-order."]
+                fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
+                    let mut buf = [0u8; std::mem::size_of::<$primitive>()];
+                    reader.read_exact(&mut buf)?;
+                    Ok(Self::from_be_bytes(buf))
+                }
+            }
+
+            impl NbtWrite for $primitive {
+                #[doc = "Attempts to write primitive to writer. This will write in Big-Endian byte-order."]
+                fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
+                    Ok(writer.write(self.to_be_bytes().as_slice())?)
+                }
+            }
+        )+
+    };
+}
+
+/// These are the primitive types that will be read and written in Big-Endian order.
+primitive_io![
+    i8 u8
+    i16 u16
+    i32 u32 f32
+    i64 u64 f64
+    i128 u128
+];
 
 tag_info_table!(tag_io);
 
@@ -409,15 +401,6 @@ impl NbtRead for Vec<i8> {
     }
 }
 
-/// Read an unsigned bytearray from a reader.
-#[cfg(feature = "extensions")]
-impl NbtRead for Vec<u8> {
-    fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
-        let length = u32::nbt_read(reader)?;
-        read_bytes(reader, length as usize)
-    }
-}
-
 impl NbtRead for String {
     /// Read a String from a reader.
     fn nbt_read<R: Read>(reader: &mut R) -> Result<Self, NbtError> {
@@ -489,17 +472,6 @@ impl NbtWrite for Vec<i8> {
         (self.len() as u32).nbt_write(writer)?;
         let u8slice: &[u8] = bytemuck::cast_slice(self.as_slice());
         Ok(write_bytes(writer, u8slice)? + 4) // The `+ 4` is to add the size of the u32 length
-    }
-}
-
-// This is a special implementation for writing Vec<u8>.
-// Profiling showed that this was an improvement, so it's what I'm going with.
-#[cfg(feature = "extensions")]
-impl NbtWrite for Vec<u8> {
-    /// Write an unsigned bytearray to a writer.
-    fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
-        (self.len() as u32).nbt_write(writer)?;
-        Ok(write_bytes(writer, &self)? + 4) // The `+ 4` is to add the size of the u32 length
     }
 }
 
