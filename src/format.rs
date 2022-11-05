@@ -7,6 +7,33 @@ use std::fmt::{Write, Display, Debug, Pointer};
 
 use chumsky::chain::Chain;
 
+// Measures the size of the resulting string if this were converted to a string.
+const fn num_width(n: i64) -> usize {
+    const MAX_ACCUM: i64 = 1000000000000000000;
+    match n {
+        i64::MIN => 20,
+        i64::MAX => 19,
+        _ => {
+            let n = n.abs();
+            let mut size = if n < 0 { 1 } else { 0 };
+            let mut accum = 1;
+            // max: 1000000000000000000
+            while accum <= n && accum < MAX_ACCUM {
+                size += 1;
+                accum *= 10;
+            }
+            size
+        }
+    }
+}
+
+fn write_indent<W: Write>(buffer: &mut W, indent: usize, indent_string: &str) {
+    (0..indent)
+        .for_each(|_| { 
+            write!(buffer, "{indent_string}");
+        });
+}
+
 fn escape_string<S: AsRef<str>, W: Write>(writer: &mut W, unescaped: S) -> std::fmt::Result {
     // Macros make the whole world better!
     macro_rules! match_char {
@@ -58,20 +85,6 @@ impl Default for SpaceCount {
     }
 }
 
-impl Display for SpaceCount {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use SpaceCount::*;
-        match self {
-            One => write!(f, " "),
-            Two => write!(f, "  "),
-            Four => write!(f, "    "),
-            Eight => write!(f, "        "),
-            Sixteen => write!(f, "                "),
-            ThirtyTwo => write!(f, "                                "),
-        }
-    }
-}
-
 impl From<SpaceCount> for usize {
     fn from(count: SpaceCount) -> Self {
         count as usize
@@ -116,15 +129,6 @@ impl Indent {
 
     pub const fn eight_spaces() -> Self {
         Self::Spaces(SpaceCount::Eight)
-    }
-}
-
-impl Display for Indent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Indent::Tabs => write!(f, "\t"),
-            Indent::Spaces(spaces) => write!(f, "{spaces}"),
-        }
     }
 }
 
@@ -238,27 +242,7 @@ impl NbtDisplay for String {
     }
 }
 
-// Measures the size of the resulting string if this were converted to a string.
-const fn num_width(n: i64) -> usize {
-    const MAX_ACCUM: i64 = 1000000000000000000;
-    match n {
-        i64::MIN => 20,
-        i64::MAX => 19,
-        _ => {
-            let n = n.abs();
-            let mut size = if n < 0 { 1 } else { 0 };
-            let mut accum = 1;
-            // max: 1000000000000000000
-            while accum <= n && accum < MAX_ACCUM {
-                size += 1;
-                accum *= 10;
-            }
-            size
-        }
-    }
-}
-
-impl NbtDisplay for SnbtWrapper<&Vec<i8>> {
+impl NbtDisplay for IndentedValue<&Vec<i8>> {
     fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[B;")?;
         if self.len() <= 16 {
@@ -275,19 +259,13 @@ impl<T: NbtDisplay> NbtDisplay for &T {
     }
 }
 
-impl<T: NbtDisplay> Display for DisplayWrapper<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt_nbt(f)
-    }
-}
-
 // Wrapper type for creating display functions for SNBT.
-struct SnbtWrapper<T> {
+struct IndentedValue<T> {
     value: T,
     indentation: Indentation,
 }
 
-impl<T> SnbtWrapper<T> {
+impl<T> IndentedValue<T> {
 
     pub fn new(value: T) -> Self {
         Self::indented(value, Indentation::spaces(SpaceCount::Four))
@@ -300,8 +278,8 @@ impl<T> SnbtWrapper<T> {
         }
     }
 
-    pub fn indent<NT>(&self, value: NT) -> SnbtWrapper<NT> {
-        SnbtWrapper::indented(value, self.indentation.indent())
+    pub fn indent<NT>(&self, value: NT) -> IndentedValue<NT> {
+        IndentedValue::indented(value, self.indentation.indent())
     }
 
     pub(crate) fn write_indent<W: std::fmt::Write>(&self, writer: &mut W) -> std::fmt::Result {
@@ -310,66 +288,44 @@ impl<T> SnbtWrapper<T> {
 
 }
 
-impl<T: Display> Display for SnbtWrapper<T> {
+impl<T: Display> Display for IndentedValue<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}", self.indentation, self.value)
     }
 }
 
-impl<T: Display> SnbtWrapper<T> {
+impl<T: Display> IndentedValue<T> {
     pub fn write_indented_value<W: std::fmt::Write>(&self, writer: &mut W) {
         self.write_indent(writer);
         write!(writer, "{}{}", self.indentation, self.value);
     }
 }
 
-impl std::fmt::Debug for SnbtWrapper<i8> {
+impl Display for SpaceCount {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}B", self.value)
+        use SpaceCount::*;
+        match self {
+            One => write!(f, " "),
+            Two => write!(f, "  "),
+            Four => write!(f, "    "),
+            Eight => write!(f, "        "),
+            Sixteen => write!(f, "                "),
+            ThirtyTwo => write!(f, "                                "),
+        }
     }
 }
 
-fn write_indent<W: Write>(buffer: &mut W, indent: usize, indent_string: &str) {
-    (0..indent)
-        .for_each(|_| { 
-            write!(buffer, "{indent_string}");
-        });
-}
-
-struct NbtFormatter {
-    buffer: String,
-}
-
-impl Write for NbtFormatter {
-    fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        todo!()
+impl Display for Indent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Indent::Tabs => write!(f, "\t"),
+            Indent::Spaces(spaces) => write!(f, "{spaces}"),
+        }
     }
 }
 
-trait FormatNbt: Sized {
-    fn format_nbt<W: Write>(&self, writer: W);
+impl<T: NbtDisplay> Display for DisplayWrapper<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt_nbt(f)
+    }
 }
-
-
-// #[test]
-// fn just_do_it() {
-//     trait Foo {
-//         fn print(&self);
-//     }
-//
-//     impl Foo for String {
-//         fn print(&self) {
-//             println!("Final: {}", self);
-//         }
-//     }
-//
-//     impl<T: Foo + Display> Foo for &T {
-//         fn print(&self) {
-//             println!("Deref: {}", self);
-//             T::print(self)
-//         }
-//     }
-//     let bar = "Hello, world!".to_string();
-//     let drink = &&&&&&&&&&bar;
-//     drink.print();
-// }
