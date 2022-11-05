@@ -3,7 +3,7 @@ name = "rustnbt"
 version = "0.1.0"
 authors = ["Derek F. <https://github.com/NullSurplus/>", "Rust Programming Language Discord Server <https://discord.gg/rust-lang-community>"]
 edition = "2021"
-description = "Minecraft NBT Library with additional type support."
+description = "Minecraft NBT Library."
 readme = "README.md"
 repository = "https://github.com/NullSurplus/rustnbt"
 license-file = "LICENSE"
@@ -16,7 +16,6 @@ publish = false
 
 [features]
 preserve_order = ["dep:indexmap"]
-extensions = []
 
 [dependencies]
 thiserror = "1.0"
