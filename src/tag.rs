@@ -466,13 +466,6 @@ impl Tag {
         Tag::List(array.into())
     }
 
-    pub fn experimental_list<T, IT: Iterator<Item = T>>(it: IT) -> Tag
-    where
-        IT: Into<ListTag>
-    {
-        Tag::List(it.into())
-    }
-
     /// Create a [Tag::Compound].
     pub fn compound<S, T, IT>(items: IT) -> Tag
     where
