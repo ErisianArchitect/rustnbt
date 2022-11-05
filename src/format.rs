@@ -5,6 +5,8 @@ version of JSON.
 
 use std::fmt::{Write, Display, Debug, Pointer};
 
+use chumsky::chain::Chain;
+
 fn escape_string<S: AsRef<str>, W: Write>(writer: &mut W, unescaped: S) -> std::fmt::Result {
     // Macros make the whole world better!
     macro_rules! match_char {
@@ -92,6 +94,14 @@ impl Default for Indent {
 
 impl Indent {
 
+    /// Returns the length of the indent string.
+    pub fn len(&self) -> usize {
+        match self {
+            Indent::Tabs => 1,
+            Indent::Spaces(count) => *count as usize,
+        }
+    }
+
     pub const fn space() -> Self {
         Self::Spaces(SpaceCount::One)
     }
@@ -126,6 +136,12 @@ pub struct Indentation {
 }
 
 impl Indentation {
+
+    /// Returns the length of the indentation string.
+    pub fn len(&self) -> usize {
+        self.indent.len() * self.level
+    }
+
     pub const fn new(indent: Indent) -> Self {
         Self {
             indent,
@@ -222,9 +238,34 @@ impl NbtDisplay for String {
     }
 }
 
+// Measures the size of the resulting string if this were converted to a string.
+const fn num_width(n: i64) -> usize {
+    const MAX_ACCUM: i64 = 1000000000000000000;
+    match n {
+        i64::MIN => 20,
+        i64::MAX => 19,
+        _ => {
+            let n = n.abs();
+            let mut size = if n < 0 { 1 } else { 0 };
+            let mut accum = 1;
+            // max: 1000000000000000000
+            while accum <= n && accum < MAX_ACCUM {
+                size += 1;
+                accum *= 10;
+            }
+            size
+        }
+    }
+}
+
 impl NbtDisplay for SnbtWrapper<&Vec<i8>> {
     fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        
+        write!(f, "[B;")?;
+        if self.len() <= 16 {
+
+        }
+        write!(f, "]");
+        Ok(())
     }
 }
 
@@ -263,7 +304,7 @@ impl<T> SnbtWrapper<T> {
         SnbtWrapper::indented(value, self.indentation.indent())
     }
 
-    fn write_indent<W: std::fmt::Write>(&self, writer: &mut W) -> std::fmt::Result {
+    pub(crate) fn write_indent<W: std::fmt::Write>(&self, writer: &mut W) -> std::fmt::Result {
         write!(writer, "{}", self.indentation)
     }
 
@@ -285,18 +326,6 @@ impl<T: Display> SnbtWrapper<T> {
 impl std::fmt::Debug for SnbtWrapper<i8> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}B", self.value)
-    }
-}
-
-impl Display for SnbtWrapper<i8> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}B", self)
-    }
-}
-
-impl Display for SnbtWrapper<Vec<i8>> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
     }
 }
 
