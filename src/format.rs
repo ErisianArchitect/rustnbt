@@ -351,25 +351,25 @@ trait FormatNbt: Sized {
 }
 
 
-#[test]
-fn just_do_it() {
-trait Foo {
-    fn print(&self);
-}
-
-impl Foo for String {
-    fn print(&self) {
-        println!("Final: {}", self);
-    }
-}
-
-impl<T: Foo + Display> Foo for &T {
-    fn print(&self) {
-        println!("Deref: {}", self);
-        T::print(self)
-    }
-}
-let bar = "Hello, world!".to_string();
-let drink = &&&&&&&&&&bar;
-drink.print();
-}
+// #[test]
+// fn just_do_it() {
+//     trait Foo {
+//         fn print(&self);
+//     }
+//
+//     impl Foo for String {
+//         fn print(&self) {
+//             println!("Final: {}", self);
+//         }
+//     }
+//
+//     impl<T: Foo + Display> Foo for &T {
+//         fn print(&self) {
+//             println!("Deref: {}", self);
+//             T::print(self)
+//         }
+//     }
+//     let bar = "Hello, world!".to_string();
+//     let drink = &&&&&&&&&&bar;
+//     drink.print();
+// }
