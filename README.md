@@ -1,11 +1,19 @@
+# **WARNING!**
+
+This library is in active development, and breaking changes are possible. If this warning is visible, that means that breaking changes are possible. It's also likely that those breaking changes won't be documented due to me constantly forgetting to document things.<br>
+I have a few more planned features that I want to add before the first stable release.
+
 # rustnbt
 
-Minecraft NBT format library.
+Minecraft NBT format library with support for SNBT (NBT text based format).<br>
+The SNBT portion of the library is currently incomplete as of November 11th, 2022.<br>
+It is currently only possible to decode SNBT into NBT. I'm currently in the depths of overengineering hell, so we'll see how long this takes.
+
 
 https://wiki.vg/NBT <br>
 https://minecraft.fandom.com/wiki/NBT_format
 
-This implements Minecraft's NBT format, then adds some tags to the format.
+This implements Minecraft's NBT format.
 
 ## Coverage
 
@@ -24,38 +32,16 @@ This implements Minecraft's NBT format, then adds some tags to the format.
  010  Compound            Map
  011  IntArray            Vec::<i32>
  012  LongArray           Vec::<i64>
-//==Extensions=========================
- 128  UByte               u8
- 129  UShort              u16
- 130  UInt                u32
- 131  ULong               u64
- 132  Bytes               Vec::<u8>
- 133  ShortArray          Vec::<i16>
- 134  UShortArray         Vec::<u16>
- 135  UIntArray           Vec::<u32>
- 136  ULongArray          Vec::<u64>
- 137  I128                i128
- 138  U128                u128
- 139  I128Array           Vec::<i128>
- 140  U128Array           Vec::<u128>
- 141  StringArray         Vec::<String>
- 142  FloatArray          Vec::<f32>
- 143  DoubleArray         Vec::<f64>
 ```
-At some point in the future, I hope to write up a spec for the extensions, but it is a logical extension of Minecraft's NBT.
-
-One thing to note is that the extension types have IDs that start at `128`. This is to attempt to prevent collisions with any potential future additions to Minecraft's NBT specification.
-
 ### Reason
 
-I needed a library that could serialize and deserialize NBT, and I didn't want to use someone else's library, so I wrote my own and then added some extra functionality as the cherry on top.<br>
+I needed a library that could serialize and deserialize NBT, and I didn't want to use someone else's library, so I wrote my own.<br>
 Although I wrote it for my own purposes, you are free to use it for your own.
 
 ## Before Use
 
 If you prefer that the order of elements in a Compound tag are preserved, you can add the `preserve_order` feature.
 This feature will use [indexmap](https://docs.rs/indexmap/latest/indexmap/) to preserve order. This adds a small toll to the size of the Tag enum type, and also incurs a small performance penalty. Minecraft does not specify that tags must be in any particular order, so it is merely a matter of preference. This feature is off by default.<br>
-If you would like to try out the tag type extensions, you will need the `extensions` feature enabled. These are experimental extensions to Minecraft's NBT format, and I do not advise you to use it in production code. They were merely added into the library because I found that I could without having to write a bunch of extra code to support them.
 
 ### WARNING!
 
@@ -137,8 +123,7 @@ let list_string = list!(
 let mut file = File::open(path).expect("Failed to open the file.");
 // Get the file size to find an appropriate buffer size.
 let size = file.metadata().expect("Failed to unwrap metadata.").len() as usize;
-// Max buffer size is 4mib
-let buffer_capacity = size.min(rustnbt::mebibytes(4));
+let buffer_capacity = size.min(4096);
 let mut reader = BufReader::with_capacity(buffer_capacity, file);
 // Attempts to read a NamedTag from the reader.
 // A NamedTag is a special type that holds a String name and a Tag.
@@ -167,9 +152,8 @@ let (name, tag) = <(String, Tag)>::from(root);
 
 ```rs
 let mut file = File::create(path).expect("Failed to create the file.");
-// Restrict buffer capacity to 4mib.
 let root_size = root.nbt_size();
-let buffer_capacity = root_size.min(rustnbt::mebibytes(4));
+let buffer_capacity = root_size.min(4096);
 let mut writer = BufWriter::with_capacity(buffer_capacity, file);
 let bytes_written = writer.write_nbt(&root).expect("Failed to write NBT.");
 println!("Wrote {} bytes.", bytes_written);
