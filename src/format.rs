@@ -56,6 +56,7 @@ fn escape_string<S: AsRef<str>, W: Write>(writer: &mut W, unescaped: S) -> std::
             '\n' => "\\n",
             '\r' => "\\r",
             '\t' => "\\t",
+            '\0' => "\\0",
             other => other
         }
     })
