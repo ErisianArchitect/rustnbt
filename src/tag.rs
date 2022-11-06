@@ -348,7 +348,7 @@ impl Tag {
     }
 
     /// Create a [Tag::Byte] from the provided value.
-    /// If the provided value cannot be converted to an [i8], then `Tag::Byte(0)` will be returned.
+    /// If the provided value cannot be converted to an [i8], then [Tag::Byte(0)] will be returned.
     pub fn byte<T: ToPrimitive>(value: T) -> Tag {
         if let Some(value) = value.to_i8() {
             Tag::Byte(value)
@@ -432,11 +432,11 @@ impl Tag {
     pub fn string<S: Into<String>>(value: S) -> Tag {
         Tag::String(value.into())
     }
-    
-    // TODO: [ fn Tag::list() ]I don't think that I can make this work with an iterator, but I sure would like to try.
+
     /// Create a [Tag::List].
-    pub fn list<T>(array: T) -> Tag where T: Into<ListTag> {
-        Tag::List(array.into())
+    pub fn list<T: NbtType, IT: IntoIterator<Item = T>>(it: IT) -> Tag 
+    where Vec<T>: Into<ListTag> {
+        Tag::List(ListTag::from(it.into_iter().collect::<Vec<T>>().into()))
     }
 
     /// Create a [Tag::Compound].
@@ -447,6 +447,18 @@ impl Tag {
         });
         Tag::Compound(result)
     }
+}
+
+#[test]
+fn list_test() {
+    let list = Tag::list([
+        "Hello, world!".to_string(),
+        "Foo".to_string(),
+        "Bar".to_string(),
+        "Baz".to_string(),
+        "Fred".to_string(),
+    ]);
+    println!("{}", list);
 }
 
 /// Creates a [Tag::Byte] from a boolean value.
