@@ -47,17 +47,15 @@ fn escape_string<S: AsRef<str>, W: Write>(writer: &mut W, unescaped: S) -> std::
     }
     unescaped.as_ref().chars().try_for_each(|ch| {
         match_char!{writer, ch;
-            '\t' => "\\t",
-            '\r' => "\\r",
-            '\n' => "\\n",
             '\\' => "\\\\",
             '/' => "\\/",
             '"' => "\\\"",
             '\'' => "\\'",
             '\x08' => "\\b",
             '\x0C' => "\\f",
-            '\0' => "\\0",
-            // TODO: [ Escape Sequences ] Figure out what other escape sequences I should add.
+            '\n' => "\\n",
+            '\r' => "\\r",
+            '\t' => "\\t",
             other => other
         }
     })
