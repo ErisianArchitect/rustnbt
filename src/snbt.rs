@@ -41,15 +41,6 @@ pub enum ParseError {
     ParseFailure(Vec<Simple<Token>>),
 }
 
-// problem: I need to parse the suffix of numeric literals:
-// Byte     b or B
-// Short    s or S
-// Int      <none>
-// Long     l or L
-// Float    f or F
-// Double   d or D or <none>
-// Since these are case-insensitive
-
 fn is_ident_char(c: &char) -> bool {
     c.is_ascii_alphanumeric() || ['_','-','+','.'].contains(c)
 }
