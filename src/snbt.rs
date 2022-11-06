@@ -32,66 +32,22 @@ use chumsky::primitive::{
 use chumsky::Error;
 use std::collections::HashSet;
 use std::fmt::{Write, Display};
+use std::str::FromStr;
 
-#[derive(Debug, thiserror::Error)]
-pub enum ParseError {
-    #[error("Found invalid token(s).")]
-    TokenizeError(Vec<Simple<char>>),
-    #[error("Failed to parse SNBT.")]
-    ParseFailure(Vec<Simple<Token>>),
-}
-
-fn is_ident_char(c: &char) -> bool {
-    c.is_ascii_alphanumeric() || ['_','-','+','.'].contains(c)
-}
-
-fn identifier<E: chumsky::Error<char>>() -> impl Parser<char, String, Error = E> {
-    filter::<char,_,E>(is_ident_char)
-        .repeated()
-        .at_least(1)
-        .collect::<String>()
-}
-
-fn strcmp(ignore_case: bool, lhs: &str, rhs: &str, ) -> bool {
-    if lhs.len() != rhs.len() {
-        return false;
-    }
-    if ignore_case {
-        lhs.to_lowercase() == rhs.to_lowercase()
-    } else {
-        lhs == rhs
-    }
-}
-
-fn keyword<S: AsRef<str>>(word: S, ignore_case: bool) -> impl Parser<char, (), Error = Simple<char>> {
-    identifier()
-        .try_map(move |text, span| {
-            if strcmp(ignore_case, word.as_ref(), &text) {
-                Ok(())
-            } else {
-                Err(Simple::custom(span, format!("Expected keyword: {}, found {}", word.as_ref(), text)))
-            }
-        })
-}
-
-fn no_case<C: Container<char>>(chars: C) -> HashSet<char> {
-    chars.get_iter().fold(HashSet::new(), |mut set, c| {
-        set.insert(c);
-        if c.is_lowercase() {
-            set.extend(c.to_uppercase());
-        } else {
-            set.extend(c.to_lowercase());
-        }
-        set
-    })
-}
-
-fn one_of_nc<C: Container<char>, E: Error<char>>(chars: C) -> OneOf<char,HashSet<char>,E> {
-    one_of(no_case(chars))
-}
-
-fn none_of_nc<C: Container<char>, E: Error<char>>(chars: C) -> NoneOf<char,HashSet<char>,E> {
-    none_of(no_case(chars))
+#[derive(PartialEq, Eq,PartialOrd, Ord, Clone, Hash, Debug)]
+pub enum Token {
+    Comma,
+    Colon,
+    ArrayStart(ArrayType),
+    OpenBracket,
+    CloseBracket,
+    OpenBrace,
+    CloseBrace,
+    Boolean(bool),
+    Integer(String, IntegerType),
+    Decimal(String, DecimalType),
+    Identifier(String),
+    StringLiteral(String),
 }
 
 #[derive(PartialEq, Eq,PartialOrd, Ord, Clone, Hash, Debug)]
@@ -113,22 +69,6 @@ pub enum IntegerType {
 pub enum DecimalType {
     Float,
     Double,
-}
-
-#[derive(PartialEq, Eq,PartialOrd, Ord, Clone, Hash, Debug)]
-pub enum Token {
-    Comma,
-    Colon,
-    ArrayStart(ArrayType),
-    OpenBracket,
-    CloseBracket,
-    OpenBrace,
-    CloseBrace,
-    Boolean(bool),
-    Integer(String, IntegerType),
-    Decimal(String, DecimalType),
-    Identifier(String),
-    StringLiteral(String),
 }
 
 // I made it easier to make the lexer. Since there is a lot of boilerplate involved, I wrote
@@ -427,6 +367,28 @@ fn parser() -> impl Parser<Token, Tag, Error = Simple<Token>> {
     ))
 }
 
+impl Tag {
+    pub fn parse<S: AsRef<str>>(source: S) -> Result<Tag, ParseError> {
+        match Token::parse(source) {
+            Ok(tokens) => {
+                match parser().parse(tokens) {
+                    Ok(tag) => Ok(tag),
+                    Err(errors) => Err(ParseError::ParseFailure(errors)),
+                }
+            },
+            Err(errors) => Err(ParseError::TokenizeError(errors)),
+        }
+    }
+}
+
+impl FromStr for Tag {
+    type Err = ParseError;
+
+    fn from_str(source: &str) -> Result<Self, Self::Err> {
+        Tag::parse(source)
+    }
+}
+
 /// Attempt to parse Minecraft SNBT format into an NBT [Tag].
 /// ### Example
 /// ```
@@ -511,52 +473,6 @@ fn escape_string<S: AsRef<str>>(unescaped: S) -> String {
     })
 }
 
-/// This function will dump the provided [Tag] as a String.
-/// Since the extension tags are not part of the Minecraft spec, they are
-/// also not part of this implementation of SNBT.
-/// That means that tags that are not part of the Minecraft format will be
-/// rendered differently.
-#[cfg(feature = "extensions")]
-pub fn dump_snbt<T: AsRef<Tag>, F: Fn(&Tag) -> String>(tag: T, unrecognized: F) -> String {
-    use std::fmt::Write;
-    macro_rules! array_writer {
-        ($input:expr; $prefix:literal) => {
-            {
-                let array = $input;
-                let mut buffer = concat!("[", $prefix, ";").to_owned();
-                let stop_index = array.len() - 1;
-                let mut buffer = array.iter().enumerate()
-                    .fold(buffer, |mut buffer: String, (index, value)| {
-                        match index {
-                            stop_index => write!(buffer, "{value}{}",$prefix),
-                            _ => write!(buffer, "{value}{}, ", $prefix),
-                        };
-                        buffer
-                    });
-                write!(buffer, "]");
-                buffer
-            }
-        };
-    }
-    let tag = tag.as_ref();
-    match tag {
-        Tag::Byte(value) => format!("{}B", value),
-        Tag::Short(value) => format!("{}S", value),
-        Tag::Int(value) =>format!("{}", value),
-        Tag::Long(value) =>format!("{}L", value),
-        Tag::Float(value) =>format!("{}F", value),
-        Tag::Double(value) =>format!("{}D", value),
-        Tag::ByteArray(array) =>array_writer!(array; "B"),
-        Tag::String(text) =>format!("\"{}\"", escape_string(text)),
-        Tag::List(list) => todo!(),
-        Tag::Compound(map) => todo!(),
-        Tag::IntArray(array) =>array_writer!(array; "I"),
-        Tag::LongArray(array) =>array_writer!(array; "L"),
-        _ => "\"<Exentions can't be converted to SNBT.>\"",
-    }
-}
-
-#[cfg(not(feature = "extensions"))]
 pub fn dump_snbt<T: AsRef<Tag>, F: Fn(&Tag,&mut String)>(tag: T) -> String {
     use std::fmt::Write;
 
@@ -596,6 +512,67 @@ pub fn dump_snbt<T: AsRef<Tag>, F: Fn(&Tag,&mut String)>(tag: T) -> String {
         #[cfg(feature = "extensions")]
         _ => "\"<Exentions can't be converted to SNBT.>\"",
     }
+}
+
+fn is_ident_char(c: &char) -> bool {
+    c.is_ascii_alphanumeric() || ['_','-','+','.'].contains(c)
+}
+
+fn identifier<E: chumsky::Error<char>>() -> impl Parser<char, String, Error = E> {
+    filter::<char,_,E>(is_ident_char)
+        .repeated()
+        .at_least(1)
+        .collect::<String>()
+}
+
+fn strcmp(ignore_case: bool, lhs: &str, rhs: &str, ) -> bool {
+    if lhs.len() != rhs.len() {
+        return false;
+    }
+    if ignore_case {
+        lhs.to_lowercase() == rhs.to_lowercase()
+    } else {
+        lhs == rhs
+    }
+}
+
+fn keyword<S: AsRef<str>>(word: S, ignore_case: bool) -> impl Parser<char, (), Error = Simple<char>> {
+    identifier()
+        .try_map(move |text, span| {
+            if strcmp(ignore_case, word.as_ref(), &text) {
+                Ok(())
+            } else {
+                Err(Simple::custom(span, format!("Expected keyword: {}, found {}", word.as_ref(), text)))
+            }
+        })
+}
+
+fn no_case<C: Container<char>>(chars: C) -> HashSet<char> {
+    chars.get_iter().fold(HashSet::new(), |mut set, c| {
+        set.insert(c);
+        if c.is_lowercase() {
+            set.extend(c.to_uppercase());
+        } else {
+            set.extend(c.to_lowercase());
+        }
+        set
+    })
+}
+
+fn one_of_nc<C: Container<char>, E: Error<char>>(chars: C) -> OneOf<char,HashSet<char>,E> {
+    one_of(no_case(chars))
+}
+
+fn none_of_nc<C: Container<char>, E: Error<char>>(chars: C) -> NoneOf<char,HashSet<char>,E> {
+    none_of(no_case(chars))
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ParseError {
+    #[error("Found invalid token(s).")]
+    TokenizeError(Vec<Simple<char>>),
+    #[error("Failed to parse SNBT.")]
+    ParseFailure(Vec<Simple<Token>>),
 }
 
 // The spookiest test of them all
@@ -663,6 +640,34 @@ fn parsetest() {
     } else {
         panic!();
     }
+}
+
+#[test]
+fn tag_fromstr_test() {
+    let snbt = r#"
+    {
+        byte1 : 0b,
+        byte2 : -10b,
+        byte3 : 127b,
+        short : 69s,
+        int : 420,
+        long : 69420,
+        float : 3f,
+        float2 : 3.14f,
+        double : 4d,
+        double2 : 4.5d,
+        double3 : 5.1,
+        bytearray : [B; true, false, 5b],
+        intarray : [I; 3, 5, 1],
+        longarray : [L; 3l, 4l, 5l],
+        list : [4b, 3b, 2b],
+        compound : {
+            "test" : "The quick brown fox jumps over the lazy dog."
+        }
+    }
+    "#;
+    let tag: Tag = snbt.parse().expect("Failed to parse.");
+    println!("{tag}");
 }
 
 // TEMPORARY: DELETE ME!
