@@ -434,13 +434,12 @@ impl Tag {
     }
 
     /// Create a [Tag::List].
-    pub fn list<T: NbtType, IT: IntoIterator<Item = T>>(it: IT) -> Tag 
-    where Vec<T>: Into<ListTag> {
+    pub fn list<T: NbtType, IT: IntoIterator<Item = T>>(it: IT) -> Tag where Vec<T>: Into<ListTag> {
         Tag::List(ListTag::from(it.into_iter().collect::<Vec<T>>().into()))
     }
 
     /// Create a [Tag::Compound].
-    pub fn compound<T,IT,S>(items: IT) -> Tag where S: Into<String>, T: Into<Tag>, IT: IntoIterator<Item = (S, T)> {
+    pub fn compound<T,IT,S>(items: IT) -> Tag where T: Into<Tag>, IT: IntoIterator<Item = (S, T)>, S: Into<String> {
         let mut result = Map::new();
         items.into_iter().for_each(|(name, tag)| {
             result.insert(name.into(), tag.into());
