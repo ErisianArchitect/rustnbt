@@ -79,7 +79,7 @@ pub enum DecimalType {
 // First you have the name that you want to apply to the function, then "=>", then a block
 // for the parser:
 //     name => { /* parser initialization */ }
-macro_rules! token_api {
+macro_rules! token_parse_functions {
     ($($name:ident => $block:block)+) => {
         impl Token {
             $(
@@ -103,7 +103,7 @@ macro_rules! token_api {
     };
 }
 
-token_api!{
+token_parse_functions!{
     comma => { just(',').to(Token::Comma).labelled("Comma") }
     colon => { just(':').to(Token::Colon).labelled("Colon") }
     array_start => {
@@ -368,6 +368,40 @@ fn parser() -> impl Parser<Token, Tag, Error = Simple<Token>> {
 }
 
 impl Tag {
+    /// Attempt to parse Minecraft SNBT format into an NBT [Tag].
+    /// ### Example
+    /// ```
+    /// # use rustnbt::{*,tag::*,io::*,snbt::*};
+    /// let snbt = r#"
+    /// {
+    ///     byte1 : 0b,
+    ///     byte2 : -10b,
+    ///     byte3 : 127b,
+    ///     short : 69s,
+    ///     int : 420,
+    ///     long : 69420,
+    ///     float : 3f,
+    ///     float2 : 3.14f,
+    ///     double : 4d,
+    ///     double2 : 4.5d,
+    ///     double3 : 5.1,
+    ///     bytearray : [B; true, false, 5b],
+    ///     intarray : [I; 3, 5, 1],
+    ///     longarray : [L; 3l, 4l, 5l],
+    ///     lists : [
+    ///         ["one", "two", 'three', 'four\\nnewline']
+    ///     ],
+    ///     compound : {
+    ///         "test" : "The quick brown fox jumps over the lazy dog."
+    ///     }
+    /// }
+    /// "#;
+    /// if let Ok(Tag::Compound(result)) = Tag::parse(snbt) {
+    ///     assert!(result.contains_key(&"double".to_string()));
+    /// } else {
+    ///     panic!();
+    /// }
+    /// ```
     pub fn parse<S: AsRef<str>>(source: S) -> Result<Tag, ParseError> {
         match Token::parse(source) {
             Ok(tokens) => {
@@ -386,131 +420,6 @@ impl FromStr for Tag {
 
     fn from_str(source: &str) -> Result<Self, Self::Err> {
         Tag::parse(source)
-    }
-}
-
-/// Attempt to parse Minecraft SNBT format into an NBT [Tag].
-/// ### Example
-/// ```
-/// # use rustnbt::{*,tag::*,io::*,snbt::*};
-/// let snbt = r#"
-/// {
-///     byte1 : 0b,
-///     byte2 : -10b,
-///     byte3 : 127b,
-///     short : 69s,
-///     int : 420,
-///     long : 69420,
-///     float : 3f,
-///     float2 : 3.14f,
-///     double : 4d,
-///     double2 : 4.5d,
-///     double3 : 5.1,
-///     bytearray : [B; true, false, 5b],
-///     intarray : [I; 3, 5, 1],
-///     longarray : [L; 3l, 4l, 5l],
-///     lists : [
-///         ["one", "two", 'three', 'four\\nnewline']
-///     ],
-///     compound : {
-///         "test" : "The quick brown fox jumps over the lazy dog."
-///     }
-/// }
-/// "#;
-/// if let Ok(Tag::Compound(result)) = parse(snbt) {
-///     assert!(result.contains_key(&"double".to_string()));
-/// } else {
-///     panic!();
-/// }
-/// ```
-pub fn parse<S: AsRef<str>>(source: S) -> Result<Tag, ParseError> {
-    match Token::parse(source) {
-        Ok(tokens) => {
-            match parser().parse(tokens) {
-                Ok(tag) => Ok(tag),
-                Err(errors) => Err(ParseError::ParseFailure(errors)),
-            }
-        },
-        Err(errors) => Err(ParseError::TokenizeError(errors)),
-    }
-}
-
-fn escape_string<S: AsRef<str>>(unescaped: S) -> String {
-    use std::fmt::Write;
-    let unescaped = unescaped.as_ref();
-    // Macros make the whole world better!
-    macro_rules! match_char {
-        ($buffer:expr, $input:expr; $($tok:tt => $escaped:expr),+) => {
-            match $input {
-                $(
-                    $tok => write!($buffer, "{}", $escaped),
-                )+
-            }
-        };
-        (@$buffer:expr; $lit:literal => $escaped:expr) => {
-            $lit => write!("{}", $escaped)
-        };
-        (@$buffer:expr; $name:ident => $escaped:expr) => {
-            $name => write!("{}", $escaped)
-        };
-    }
-    unescaped.chars().fold(String::with_capacity(unescaped.len() + 2), |mut buffer, ch| {
-        match_char!{buffer, ch;
-            '\t' => "\\t",
-            '\r' => "\\r",
-            '\n' => "\\n",
-            '\\' => "\\\\",
-            '/' => "\\/",
-            '"' => "\\\"",
-            '\'' => "\\'",
-            '\x08' => "\\b",
-            '\x0C' => "\\f",
-            '\0' => "\\0",
-            // TODO: [ Escape Sequences ] Figure out what other escape sequences I should add.
-            other => other
-        };
-        buffer
-    })
-}
-
-pub fn dump_snbt<T: AsRef<Tag>, F: Fn(&Tag,&mut String)>(tag: T) -> String {
-    use std::fmt::Write;
-
-    macro_rules! array_writer {
-        ($input:expr; $prefix:literal) => {
-            {
-                let array = $input;
-                let mut buffer = concat!("[", $prefix, ";").to_owned();
-                let stop_index = array.len() - 1;
-                let mut buffer = array.iter().enumerate()
-                    .fold(buffer, |mut buffer: String, (index, value)| {
-                        match index {
-                            stop_index => write!(buffer, "{value}{}",$prefix),
-                            _ => write!(buffer, "{value}{}, ", $prefix),
-                        };
-                        buffer
-                    });
-                write!(buffer, "]");
-                buffer
-            }
-        };
-    }
-    let tag = tag.as_ref();
-    match tag {
-        Tag::Byte(value) => format!("{}B", value),
-        Tag::Short(value) => format!("{}S", value),
-        Tag::Int(value) =>format!("{}", value),
-        Tag::Long(value) =>format!("{}L", value),
-        Tag::Float(value) =>format!("{}F", value),
-        Tag::Double(value) =>format!("{}D", value),
-        Tag::ByteArray(array) =>array_writer!(array; "B"),
-        Tag::String(text) =>format!("\"{}\"", escape_string(text)),
-        Tag::List(list) => todo!(),
-        Tag::Compound(map) => todo!(),
-        Tag::IntArray(array) =>array_writer!(array; "I"),
-        Tag::LongArray(array) =>array_writer!(array; "L"),
-        #[cfg(feature = "extensions")]
-        _ => "\"<Exentions can't be converted to SNBT.>\"",
     }
 }
 
@@ -578,7 +487,7 @@ pub enum ParseError {
 // The spookiest test of them all
 #[cfg(test)]
 fn test_parse<S: AsRef<str>>(source: S) {
-    match parse(source) {
+    match Tag::parse(source) {
         Ok(result) => {
             println!("{}", result);
         }
@@ -612,7 +521,7 @@ fn parsetest() {
         }
     }
     "#;
-    if let Ok(Tag::Compound(result)) = parse(snbt) {
+    if let Ok(Tag::Compound(result)) = Tag::parse(snbt) {
         macro_rules! check_keys {
             ($($key:literal)+) => {
                 $(
