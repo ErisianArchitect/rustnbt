@@ -116,7 +116,7 @@ macro_rules! tag_io {
         }
 
         impl NbtSize for Tag {
-            #[doc = "Get the serialization size in bytes. That is, the number of bytes that this data will serialize to."]
+            #[doc = "Get the number of bytes that this data will serialize to."]
             fn nbt_size(&self) -> usize {
                 match self {
                     $(
@@ -127,7 +127,7 @@ macro_rules! tag_io {
         }
 
         impl NbtSize for ListTag {
-            #[doc = "Get the serialization size in bytes. That is, the number of bytes that this data will serialize to."]
+            #[doc = "Get the number of bytes that this data will serialize to."]
             fn nbt_size(&self) -> usize {
                 match self {
                     $(
@@ -212,20 +212,6 @@ macro_rules! tag_io {
             }
         }
 
-        impl NbtWrite for NamedTag {
-            #[doc = "Attempt to write a [NamedTag] to a writer. This is a wrapper around `write_named_tag(writer, self.tag(), self.name())`"]
-            fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
-                write_named_tag(writer, &self.tag, &self.name)
-            }
-        }
-
-        impl NbtRead for NamedTag {
-            #[doc = "Attempt to read a [NamedTag] from a reader. This is a wrapper around `read_named_tag(reader)"]
-            fn nbt_read<R: Read>(reader: &mut R) -> Result<NamedTag, NbtError> {
-                Ok(read_named_tag(reader)?.into())
-            }
-        }
-
         impl NbtWrite for Tag {
             #[doc = "Attempt to write a [Tag]"]
             fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
@@ -304,21 +290,21 @@ where
 }
 
 impl<T: Primitive + Sized> NbtSize for T {
-    /// Get the serialization size in bytes. That is, the number of bytes that this data will serialize to.
+    /// Get the number of bytes that this data will serialize to.
     fn nbt_size(&self) -> usize {
         std::mem::size_of::<T>()
     }
 }
 
 impl<T: Primitive + Sized> NbtSize for Vec<T> {
-    /// Get the serialization size in bytes. That is, the number of bytes that this data will serialize to.
+    /// Get the number of bytes that this data will serialize to.
     fn nbt_size(&self) -> usize {
         std::mem::size_of::<T>() * self.len() + 4usize
     }
 }
 
 impl NbtSize for String {
-    /// Get the serialization size in bytes. That is, the number of bytes that this data will serialize to.
+    /// Get the number of bytes that this data will serialize to.
     fn nbt_size(&self) -> usize {
         /*2 bytes for the length*/ 2usize + self.len()
     }
@@ -437,6 +423,13 @@ impl NbtWrite for TagID {
     }
 }
 
+impl NbtRead for NamedTag {
+    #[doc = "Attempt to read a [NamedTag] from a reader. This is a wrapper around `read_named_tag(reader)"]
+    fn nbt_read<R: Read>(reader: &mut R) -> Result<NamedTag, NbtError> {
+        Ok(read_named_tag(reader)?.into())
+    }
+}
+
 impl NbtWrite for &str {
     /// Write a string to a writer.
     fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
@@ -489,6 +482,13 @@ impl NbtWrite for Map {
                 .map(|written| written + size)
         })?;
         0u8.nbt_write(writer).map(|size| write_size + size)
+    }
+}
+
+impl NbtWrite for NamedTag {
+    #[doc = "Attempt to write a [NamedTag] to a writer. This is a wrapper around `write_named_tag(writer, self.tag(), self.name())`"]
+    fn nbt_write<W: Write>(&self, writer: &mut W) -> Result<usize, NbtError> {
+        write_named_tag(writer, &self.tag, &self.name)
     }
 }
 
