@@ -7,16 +7,16 @@ use std::fmt::{Write, Display, Debug, Pointer};
 
 use chumsky::chain::Chain;
 
-// Measures the size of the resulting string if this were converted to a string.
+/// Measures the size of the resulting string if this were converted to a string.
 const fn num_width(n: i64) -> usize {
     const MAX_ACCUM: i64 = 1000000000000000000;
     match n {
         i64::MIN => 20,
         i64::MAX => 19,
         _ => {
+            let mut size = if n < 0 { 2 } else { 1 };
             let n = n.abs();
-            let mut size = if n < 0 { 1 } else { 0 };
-            let mut accum = 1;
+            let mut accum = 10;
             // max: 1000000000000000000
             while accum <= n && accum < MAX_ACCUM {
                 size += 1;
@@ -47,6 +47,7 @@ fn escape_string<S: AsRef<str>, W: Write>(writer: &mut W, unescaped: S) -> std::
     }
     unescaped.as_ref().chars().try_for_each(|ch| {
         match_char!{writer, ch;
+            // TODO: Find out what escape sequences are supported by Minecraft.
             '\\' => "\\\\",
             '/' => "\\/",
             '"' => "\\\"",
@@ -327,4 +328,24 @@ impl<T: NbtDisplay> Display for DisplayWrapper<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt_nbt(f)
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn num_width_test() {
+        assert!(num_width(0) == 1);
+        assert!(num_width(1) == 1);
+        assert!(num_width(10) == 2);
+        assert!(num_width(-1) == 2);
+        assert!(num_width(-10) == 3);
+        assert!(num_width(1234) == 4);
+        assert!(num_width(12345) == 5);
+        assert!(num_width(123456) == 6);
+        assert!(num_width(-1234) == 5);
+        assert!(num_width(-12345) == 6);
+        assert!(num_width(-123456) == 7);
+    }
+
 }
