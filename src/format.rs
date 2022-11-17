@@ -135,15 +135,15 @@ impl Indent {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Indentation {
     indent: Indent,
-    // usize just in case someone is really determined to write out some deeply nested structures for whatever reason.
-    level: usize,
+    // u32 just in case someone is really determined to write out some deeply nested structures for whatever reason.
+    level: u32,
 }
 
 impl Indentation {
 
     /// Returns the length of the indentation string.
     pub fn len(&self) -> usize {
-        self.indent.len() * self.level
+        self.indent.len() * self.level as usize
     }
 
     pub const fn new(indent: Indent) -> Self {
@@ -153,7 +153,7 @@ impl Indentation {
         }
     }
 
-    pub const fn level(mut self, level: usize) -> Self {
+    pub const fn level(mut self, level: u32) -> Self {
         self.level = level;
         self
     }
@@ -245,17 +245,20 @@ impl NbtDisplay for String {
 impl NbtDisplay for IndentedValue<&Vec<i8>> {
     fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[B;")?;
+        // TODO
         if self.len() <= 16 {
-
         }
         write!(f, "]");
         Ok(())
     }
 }
 
+// fmt_nbt takes a reference to self, so if we have something like &&&&&&&T where T implements NbtDisplay
+// we can dereference to &T so that it's just NbtDisplay::fmt_display(&T)
+// That allows you to have a reference to a reference to a reference that implements NbtDisplay and you'll still be able to use it.
 impl<T: NbtDisplay> NbtDisplay for &T {
     fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        T::fmt_nbt(*self, f)
+        T::fmt_nbt(self, f)
     }
 }
 
