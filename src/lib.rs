@@ -5,7 +5,8 @@ pub(crate) mod table;
 pub mod tag;
 pub mod macros;
 pub mod snbt;
-pub mod format;
+// format is incomplete, and I have no need to finish it, so it will remain incomplete until it is needed.
+// pub mod format;
 
 /// This is the Error type returned from NbtRead and NbtWrite operations that fail.
 #[derive(thiserror::Error, Debug)]
