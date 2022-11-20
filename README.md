@@ -64,56 +64,56 @@ let string = Tag::String(String::from("The quick brown fox jumps over the lazy d
 let list = Tag::List(ListTag::from(vec!["One".to_owned(),"Two".to_owned(), "Three".to_owned()]));
 let intarray = Tag::IntArray(vec![1,1,2,3,5,8,13,21,34,55,89,144]);
 let longarray = Tag::LongArray(
-    (0..8)
-        .map(|i| (0xFu64 << i) as i64 )
-        .collect()
+	(0..8)
+		.map(|i| (0xFu64 << i) as i64 )
+		.collect()
 );
 // There are alternate ways to create a Tag::Compound. There is also a macro. More on that later.
 let compound = Tag::Compound(Map::from([
-    ("Byte".to_owned(), byte),
-    ("Short".to_owned(), short),
-    ("Int".to_owned(), int),
-    ("Long".to_owned(), long),
-    ("Float".to_owned(), float),
-    ("Double".to_owned(), double),
-    ("ByteArray".to_owned(), bytearray),
-    ("String".to_owned(), string),
-    ("List".to_owned(), list),
-    ("Compound".to_owned(), Tag::Compound(Map::from([
-        ("One".to_owned(), 1.into()),
-        ("Two".to_owned(), 2.into()),
-        ("Three".to_owned(), 3.into()),
-        ("True".to_owned(), true.into()),
-        ("False".to_owned(), false.into()),
-        ("Empty List".to_owned(), Tag::List(ListTag::Empty)),
-    ]))),
-    ("IntArray".to_owned(), intarray),
-    ("LongArray".to_owned(), longarray),
+	("Byte".to_owned(), byte),
+	("Short".to_owned(), short),
+	("Int".to_owned(), int),
+	("Long".to_owned(), long),
+	("Float".to_owned(), float),
+	("Double".to_owned(), double),
+	("ByteArray".to_owned(), bytearray),
+	("String".to_owned(), string),
+	("List".to_owned(), list),
+	("Compound".to_owned(), Tag::Compound(Map::from([
+		("One".to_owned(), 1.into()),
+		("Two".to_owned(), 2.into()),
+		("Three".to_owned(), 3.into()),
+		("True".to_owned(), true.into()),
+		("False".to_owned(), false.into()),
+		("Empty List".to_owned(), Tag::List(ListTag::Empty)),
+	]))),
+	("IntArray".to_owned(), intarray),
+	("LongArray".to_owned(), longarray),
 ]));
 // So let's say you want to create a compound, but you don't want to have
 // to type String::from/to_string/to_owned/etc and Tag::from/into/etc.
 // Well the compound macro makes it easy to create compound tags
 // without hurting your pwecious wittle fingy wingies.
 let compound = compound!(
-    ("One", 1),
-    ("Two".to_owned(), Tag::Byte(2)),
-    ("String", "Hello, world!")
+	("One", 1),
+	("Two".to_owned(), Tag::Byte(2)),
+	("String", "Hello, world!")
 );
 // There is also a macro for Tag::List, but I don't feel like documenting
 // it right now. Oh, alright. Fine. I'll tell show you.
 let list_int = list!(
-    1,
-    2,
-    3,
-    4
+	1,
+	2,
+	3,
+	4
 );
 // Unfortunately, it won't work with string literals ☹
 // Just kidding! Yes it will!
 let list_string = list!(
-    "One",
-    "Two",
-    "Three",
-    "Four"
+	"One",
+	"Two",
+	"Three",
+	"Four"
 );
 ```
 
