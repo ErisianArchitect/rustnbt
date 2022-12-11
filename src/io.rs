@@ -81,13 +81,14 @@ macro_rules! tag_io {
 		This is also how the root tag of an NBT file is written.
 		"]
 		pub fn write_named_tag<W: Write, S: AsRef<str>>(writer: &mut W, tag: &Tag, name: S) -> Result<usize, NbtError> {
+			let id = tag.id();
+			id.nbt_write(writer)?;
+			let key_size = name.as_ref().nbt_write(writer)?;
 			match tag {
 				$(
-					Tag::$title(tag) => {
-						let id_size = TagID::$title.nbt_write(writer)?;
-						let key_size = name.as_ref().nbt_write(writer)?;
-						let tag_size = tag.nbt_write(writer)?;
-						Ok(id_size + key_size + tag_size)
+					Tag::$title(data) => {
+						let tag_size = data.nbt_write(writer)?;
+						Ok(key_size + tag_size + /* ID */ 1 )
 					}
 				)+
 			}
@@ -120,7 +121,7 @@ macro_rules! tag_io {
 			fn nbt_size(&self) -> usize {
 				match self {
 					$(
-						Tag::$title(tag) => tag.nbt_size(),
+						Tag::$title(data) => data.nbt_size(),
 					)+
 				}
 			}
@@ -131,9 +132,9 @@ macro_rules! tag_io {
 			fn nbt_size(&self) -> usize {
 				match self {
 					$(
-						ListTag::$title(list) => list.iter().map(|item| item.nbt_size()).sum::<usize>() + 5,
+						ListTag::$title(list) => list.iter().map(|item| item.nbt_size()).sum::<usize>() + 5 /* 5 = 4 bytes for length and 1 byte for id */,
 					)+
-					ListTag::Empty => 5,
+					ListTag::Empty => 5 /* 5 = 4 bytes for length and 1 byte for id */,
 				}
 			}
 		}
