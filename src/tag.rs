@@ -35,119 +35,199 @@ pub trait DecodeNbt: Sized {
 	/// Tries to decode from NBT.
 	fn decode_nbt(nbt: Tag) -> Result<Self, Self::Error>;
 }
+/// The NBT Tag enum.<br>
+/// To see what types are supported, take a look at the table in [tag_info_table] located in [`/src/table.rs`].
+#[derive(Clone, Debug)]
+#[repr(u8)]
+pub enum Tag {
+	Byte(i8) = 1,
+	Short(i16) = 2,
+	Int(i32) = 3,
+	Long(i64) = 4,
+	Float(f32) = 5,
+	Double(f64) = 6,
+	ByteArray(std::vec::Vec<i8>) = 7,
+	String(std::string::String) = 8,
+	List(crate::tag::ListTag) = 9,
+	Compound(crate::Map) = 10,
+	IntArray(std::vec::Vec<i32>) = 11,
+	LongArray(std::vec::Vec<i64>) = 12,
+}
+
+#[doc = "The NBT tag type ID."]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum TagID {
+	Byte = 1,
+	Short = 2,
+	Int = 3,
+	Long = 4,
+	Float = 5,
+	Double = 6,
+	ByteArray = 7,
+	String = 8,
+	List = 9,
+	Compound = 10,
+	IntArray = 11,
+	LongArray = 12,
+}
+
+#[doc = "Enum type for [Tag::List]."]
+#[derive(Clone, Debug)]
+pub enum ListTag {
+	///Represents a ListTag without any elements.
+	Empty,
+	Byte(Vec<i8>),
+	Short(Vec<i16>),
+	Int(Vec<i32>),
+	Long(Vec<i64>),
+	Float(Vec<f32>),
+	Double(Vec<f64>),
+	ByteArray(Vec<std::vec::Vec<i8>>),
+	String(Vec<std::string::String>),
+	List(Vec<crate::tag::ListTag>),
+	Compound(Vec<crate::Map>),
+	IntArray(Vec<std::vec::Vec<i32>>),
+	LongArray(Vec<std::vec::Vec<i64>>),
+}
+
+impl TagID {
+	#[doc = "PascalCase title of this [TagID]."]
+	pub const fn title(self) -> &'static str {
+		match self {
+			TagID::Byte => "Byte",
+			TagID::Short => "Short",
+			TagID::Int => "Int",
+			TagID::Long => "Long",
+			TagID::Float => "Float",
+			TagID::Double => "Double",
+			TagID::ByteArray => "ByteArray",
+			TagID::String => "String",
+			TagID::List => "List",
+			TagID::Compound => "Compound",
+			TagID::IntArray => "IntArray",
+			TagID::LongArray => "LongArray",
+		}
+	}
+
+	#[doc = "In the format of `TAG_TagTitle`."] 
+	pub const fn name(self) -> &'static str {
+		match self {
+			TagID::Byte => "TAG_Byte",
+			TagID::Short => "TAG_Short",
+			TagID::Int => "TAG_Int",
+			TagID::Long => "TAG_Long",
+			TagID::Float => "TAG_Float",
+			TagID::Double => "TAG_Double",
+			TagID::ByteArray => "TAG_ByteArray",
+			TagID::String => "TAG_String",
+			TagID::List => "TAG_List",
+			TagID::Compound => "TAG_Compound",
+			TagID::IntArray => "TAG_IntArray",
+			TagID::LongArray => "TAG_LongArray",
+		}
+	}
+}
+
+impl Tag {
+	#[doc = "Returns the NBT type ID."]
+	pub fn id(&self) -> TagID {
+		match self {
+			Tag::Byte(_) => TagID::Byte,
+			Tag::Short(_) => TagID::Short,
+			Tag::Int(_) => TagID::Int,
+			Tag::Long(_) => TagID::Long,
+			Tag::Float(_) => TagID::Float,
+			Tag::Double(_) => TagID::Double,
+			Tag::ByteArray(_) => TagID::ByteArray,
+			Tag::String(_) => TagID::String,
+			Tag::List(_) => TagID::List,
+			Tag::Compound(_) => TagID::Compound,
+			Tag::IntArray(_) => TagID::IntArray,
+			Tag::LongArray(_) => TagID::LongArray,
+		}
+	}
+}
+
+impl ListTag {
+	#[doc = "Returns the list type ID. Returns [TagID::Byte] for [ListTag::Empty]."]
+	pub fn id(&self) -> TagID {
+		match self {
+			ListTag::Empty => TagID::Byte,
+			ListTag::Byte(_) => TagID::Byte,
+			ListTag::Short(_) => TagID::Short,
+			ListTag::Int(_) => TagID::Int,
+			ListTag::Long(_) => TagID::Long,
+			ListTag::Float(_) => TagID::Float,
+			ListTag::Double(_) => TagID::Double,
+			ListTag::ByteArray(_) => TagID::ByteArray,
+			ListTag::String(_) => TagID::String,
+			ListTag::List(_) => TagID::List,
+			ListTag::Compound(_) => TagID::Compound,
+			ListTag::IntArray(_) => TagID::IntArray,
+			ListTag::LongArray(_) => TagID::LongArray,
+		}
+	}
+
+	#[doc = "
+	Returns the number of elements in the list.<br>
+	Returns `0` for [ListTag::Empty].
+	"]
+	pub fn len(&self) -> usize {
+		match self {
+			ListTag::Byte(list) => list.len(),
+			ListTag::Short(list) => list.len(),
+			ListTag::Int(list) => list.len(),
+			ListTag::Long(list) => list.len(),
+			ListTag::Float(list) => list.len(),
+			ListTag::Double(list) => list.len(),
+			ListTag::ByteArray(list) => list.len(),
+			ListTag::String(list) => list.len(),
+			ListTag::List(list) => list.len(),
+			ListTag::Compound(list) => list.len(),
+			ListTag::IntArray(list) => list.len(),
+			ListTag::LongArray(list) => list.len(),
+			ListTag::Empty => 0,
+		}
+	}
+}
+
+impl TryFrom<u8> for TagID {
+	type Error = crate::NbtError;
+	#[doc = "
+	Attempts to create a [TagID] from a [u8].<br>
+	Errors:
+	- [NbtError::End]
+	- [NbtError::Unsupported] { id_encountered }
+	"]
+	fn try_from(value: u8) -> Result<Self,Self::Error> {
+		match value {
+			01 => Ok(TagID::Byte),
+			02 => Ok(TagID::Short),
+			03 => Ok(TagID::Int),
+			04 => Ok(TagID::Long),
+			05 => Ok(TagID::Float),
+			06 => Ok(TagID::Double),
+			07 => Ok(TagID::ByteArray),
+			08 => Ok(TagID::String),
+			09 => Ok(TagID::List),
+			10 => Ok(TagID::Compound),
+			11 => Ok(TagID::IntArray),
+			12 => Ok(TagID::LongArray),
+			0 => Err(crate::NbtError::End),
+			other => {
+				// There was an unsupported ID passed to the try_from function.
+				Err(crate::NbtError::Unsupported {
+					id_encountered: other
+				})
+			}
+		}
+	}
+}
 
 /// This is where a majority of the generation for the code in this module happens.
 /// It utilizes the table in `\src\table.rs`.
 macro_rules! tag_data {
 	($($id:literal $title:ident $type:path [$($impl:path)?])+) => {
-		#[doc = "
-		The NBT Tag enum.<br>
-		To see what types are supported, take a look at the table in [tag_info_table] located in [`/src/table.rs`].
-		"]
-		#[derive(Clone, Debug)]
-		pub enum Tag {
-			$(
-				// There exists the temptation to add Tag::None/Empty/Null to be able to represent
-				// a nothing value, but I don't think that would be useful at all.
-				// I'm just writing this comment here in case future me has the same temptation and actually
-				// wishes to follow through: Don't bother. It's probably not really necessary.
-				$title($type),
-			)+
-		}
-
-		#[doc = "The NBT tag type ID."]
-		#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-		pub enum TagID {
-			$(
-				$title = $id,
-			)+
-		}
-
-		#[doc = "Enum type for [Tag::List]."]
-		#[derive(Clone, Debug)]
-		pub enum ListTag {
-			#[doc = "Represents a ListTag without any elements."]
-			Empty,
-			$(
-				$title(Vec<$type>),
-			)+
-		}
-
-		impl TagID {
-			#[doc = "PascalCase title of this [TagID]."]
-			pub const fn title(self) -> &'static str {
-				match self {
-					$(
-						TagID::$title => stringify!($title),
-					)+
-				}
-			}
-
-			#[doc = "In the format of `TAG_TagTitle`."] 
-			pub const fn name(self) -> &'static str {
-				match self {
-					$(
-						TagID::$title => concat!("TAG_", stringify!($title)),
-					)+
-				}
-			}
-		}
-
-		impl Tag {
-			#[doc = "Returns the NBT type ID."]
-			pub fn id(&self) -> TagID {
-				match self {
-					$(
-						Tag::$title(_) => TagID::$title,
-					)+
-				}
-			}
-		}
-
-		impl ListTag {
-			#[doc = "Returns the list type ID. Returns [TagID::Byte] for [ListTag::Empty]."]
-			pub fn id(&self) -> TagID {
-				match self {
-					ListTag::Empty => TagID::Byte,
-					$(
-						ListTag::$title(_) => TagID::$title,
-					)+
-				}
-			}
-
-			#[doc = "
-			Returns the number of elements in the list.<br>
-			Returns `0` for [ListTag::Empty].
-			"]
-			pub fn len(&self) -> usize {
-				match self {
-					$(
-						ListTag::$title(list) => list.len(),
-					)+
-					ListTag::Empty => 0,
-				}
-			}
-		}
-
-		impl TryFrom<u8> for TagID {
-			type Error = $crate::NbtError;
-			#[doc = "
-			Attempts to create a [TagID] from a [u8].<br>
-			Errors:
-			- [NbtError::End]
-			- [NbtError::Unsupported] { id_encountered }
-			"]
-			fn try_from(value: u8) -> Result<Self,Self::Error> {
-				match value {
-					$(
-						$id => Ok(TagID::$title),
-					)+
-					0 => Err($crate::NbtError::End),
-					other => Err($crate::NbtError::Unsupported { id_encountered: other }),
-				}
-			}
-		}
-
 		$(
 			// NbtType implementations for all NBT representable types.
 			impl NbtType for $type {
@@ -158,7 +238,8 @@ macro_rules! tag_data {
 					self.into()
 				}
 			}
-
+		)+
+		$(
 			// Implements non-consuming NBT encoders for all NBT representable types.
 			// It's likely that you may want to keep the old value around rather
 			// than consuming it and converting it to NBT. This is implemented for reference
@@ -169,7 +250,8 @@ macro_rules! tag_data {
 					self.clone().into()
 				}
 			}
-
+		)+
+		$(
 			// Implements consuming NBT decoders for all NBT representable types.
 			// The reason the decoder consumes the Tag is because a non-consuming decoder would
 			// still need to clone the tag in order to return a result. It may be preferable to
@@ -186,7 +268,8 @@ macro_rules! tag_data {
 					Err(())
 				}
 			}
-
+		)+
+		$(
 			// Application of marker traits.
 			// The marker traits are defined in `/src/family.rs`.
 			// The marker traits are simply used to constrain trait bounds for implementations.
@@ -199,7 +282,8 @@ macro_rules! tag_data {
 			$(
 				impl $impl for $type {}
 			)?
-
+		)+
+		$(
 			// Create a Tag from its representational type.
 			impl From<$type> for Tag {
 				#[doc = concat!("Create a [Tag::", stringify!($title), "] from its representational type.")]
@@ -207,7 +291,8 @@ macro_rules! tag_data {
 					Tag::$title(value)
 				}
 			}
-
+		)+
+		$(
 			// Create a ListTag from a Vector
 			impl From<Vec<$type>> for ListTag {
 				#[doc = concat!("Create a [ListTag::", stringify!($title), "] from its representational vector type.")]
@@ -215,7 +300,8 @@ macro_rules! tag_data {
 					ListTag::$title(value)
 				}
 			}
-
+		)+
+		$(
 			// Create a ListTag from a slice.
 			impl From<&[$type]> for ListTag {
 				#[doc = concat!("Create a [ListTag::", stringify!($title), "] from its representational slice type.")]
@@ -223,7 +309,8 @@ macro_rules! tag_data {
 					ListTag::$title(value.to_vec())
 				}
 			}
-
+		)+
+		$(
 			// Try to recreate a representational type from an NBT Tag.
 			impl TryFrom<Tag> for $type {
 				type Error = ();
