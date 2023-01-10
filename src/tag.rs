@@ -213,7 +213,7 @@ impl TryFrom<u8> for TagID {
 			10 => Ok(TagID::Compound),
 			11 => Ok(TagID::IntArray),
 			12 => Ok(TagID::LongArray),
-			0 => Err(crate::NbtError::End),
+			00 => Err(crate::NbtError::End),
 			other => {
 				// There was an unsupported ID passed to the try_from function.
 				Err(crate::NbtError::Unsupported {
