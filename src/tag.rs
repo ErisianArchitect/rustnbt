@@ -38,7 +38,7 @@ pub trait DecodeNbt: Sized {
 /// The NBT Tag enum.<br>
 /// To see what types are supported, take a look at the table in [tag_info_table] located in [`/src/table.rs`].
 #[derive(Clone, Debug)]
-#[repr(u8)]
+#[repr(isize)]
 pub enum Tag {
 	Byte(i8) = 1,
 	Short(i16) = 2,
@@ -73,21 +73,22 @@ pub enum TagID {
 
 #[doc = "Enum type for [Tag::List]."]
 #[derive(Clone, Debug)]
+#[repr(isize)]
 pub enum ListTag {
 	///Represents a ListTag without any elements.
 	Empty,
-	Byte(Vec<i8>),
-	Short(Vec<i16>),
-	Int(Vec<i32>),
-	Long(Vec<i64>),
-	Float(Vec<f32>),
-	Double(Vec<f64>),
-	ByteArray(Vec<std::vec::Vec<i8>>),
-	String(Vec<std::string::String>),
-	List(Vec<crate::tag::ListTag>),
-	Compound(Vec<crate::Map>),
-	IntArray(Vec<std::vec::Vec<i32>>),
-	LongArray(Vec<std::vec::Vec<i64>>),
+	Byte(Vec<i8>) = 1,
+	Short(Vec<i16>) = 2,
+	Int(Vec<i32>) = 3,
+	Long(Vec<i64>) = 4,
+	Float(Vec<f32>) = 5,
+	Double(Vec<f64>) = 6,
+	ByteArray(Vec<std::vec::Vec<i8>>) = 7,
+	String(Vec<std::string::String>) = 8,
+	List(Vec<crate::tag::ListTag>) = 9,
+	Compound(Vec<crate::Map>) = 10,
+	IntArray(Vec<std::vec::Vec<i32>>) = 11,
+	LongArray(Vec<std::vec::Vec<i64>>) = 12,
 }
 
 impl TagID {
