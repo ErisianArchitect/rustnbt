@@ -104,7 +104,7 @@ pub enum Indent {
 	/// Only a single tab.
 	Tabs,
 	Spaces(SpaceCount),
-	Text(String),
+	Text(&'static str),
 }
 
 impl Default for Indent {
