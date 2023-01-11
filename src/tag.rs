@@ -540,18 +540,6 @@ impl Tag {
 	}
 }
 
-#[test]
-fn list_test() {
-	let list = Tag::list([
-		"Hello, world!".to_string(),
-		"Foo".to_string(),
-		"Bar".to_string(),
-		"Baz".to_string(),
-		"Fred".to_string(),
-	]);
-	println!("{}", list);
-}
-
 /// Creates a [Tag::Byte] from a boolean value.
 impl From<bool> for Tag {
 	/// Create a [Tag::Byte] from a boolean value.
@@ -645,6 +633,19 @@ mod tests {
 			("Short".to_owned(), short.clone()),
 			("Pi".to_owned(), double.clone()),
 		]));
+	}
+
+	#[test]
+	fn list_test() {
+		use crate::tag::*;
+		let list = Tag::list([
+			"Hello, world!".to_string(),
+			"Foo".to_string(),
+			"Bar".to_string(),
+			"Baz".to_string(),
+			"Fred".to_string(),
+		]);
+		println!("{}", list);
 	}
 
 }
