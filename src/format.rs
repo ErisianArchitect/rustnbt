@@ -77,6 +77,7 @@ pub enum SpaceCount {
 	/// Come on! 32? You do not need this many spaces! But fine.
 	/// Have it your way. Here are your 32 spaces!
 	ThirtyTwo = 32,
+	Custom(usize),
 }
 
 impl Default for SpaceCount {
@@ -87,8 +88,16 @@ impl Default for SpaceCount {
 }
 
 impl From<SpaceCount> for usize {
-	fn from(count: SpaceCount) -> Self {
-		count as usize
+	fn from(count: SpaceCount) -> usize {
+		match count {
+			SpaceCount::One => 1,
+			SpaceCount::Two => 2,
+			SpaceCount::Four => 4,
+			SpaceCount::Eight => 8,
+			SpaceCount::Sixteen => 16,
+			SpaceCount::ThirtyTwo => 32,
+			SpaceCount::Custom(size) => size,
+		}
 	}
 }
 
