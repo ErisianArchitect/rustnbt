@@ -650,10 +650,3 @@ mod tests {
 
 }
 
-#[test]
-fn u8_test() {
-	let value = 200u8;
-	let signed: i8 = value as i8;
-	println!("  Signed: {signed}");
-	println!("Reversed: {}", signed as u8);
-}
