@@ -327,6 +327,10 @@ macro_rules! tag_code {
 	};
 }
 
+// This does the generation for the macro above. If you go to
+// table.rs, you'll find tag_info_table macro. The tag_info_table
+// macro invokes the macro that is passed to it with a table.
+// It's all a very complicated process that's meant to cut down on boilerplate.
 tag_info_table!(tag_code);
 
 /// Represents a Named NBT Tag, often used as a Tag Root for an NBT file.
