@@ -484,105 +484,27 @@ pub enum ParseError {
 	ParseFailure(Vec<Simple<Token>>),
 }
 
-// The spookiest test of them all
 #[cfg(test)]
-fn test_parse<S: AsRef<str>>(source: S) {
-	match Tag::parse(source) {
-		Ok(result) => {
-			println!("{}", result);
-		}
-		Err(err) => {
-			eprintln!("{:#?}", err);
-		}
-	}
-}
+mod tests {
 
-#[test]
-fn parsetest() {
-	let snbt = r#"
-	{
-		byte1 : 0b,
-		byte2 : -10b,
-		byte3 : 127b,
-		short : 69s,
-		int : 420,
-		long : 69420,
-		float : 3f,
-		float2 : 3.14f,
-		double : 4d,
-		double2 : 4.5d,
-		double3 : 5.1,
-		bytearray : [B; true, false, 5b],
-		intarray : [I; 3, 5, 1],
-		longarray : [L; 3l, 4l, 5l],
-		list : [4b, 3b, 2b],
-		compound : {
-			"test" : "The quick brown fox jumps over the lazy dog."
+	// The spookiest test of them all
+	#[cfg(test)]
+	fn test_parse<S: AsRef<str>>(source: S) {
+		use super::*;
+		match Tag::parse(source) {
+			Ok(result) => {
+				println!("{}", result);
+			}
+			Err(err) => {
+				eprintln!("{:#?}", err);
+			}
 		}
 	}
-	"#;
-	if let Ok(Tag::Compound(result)) = Tag::parse(snbt) {
-		macro_rules! check_keys {
-			($($key:literal)+) => {
-				$(
-					assert!(result.contains_key($key));
-				)+
-			};
-		}
-		check_keys!{
-			"byte1"
-			"byte2"
-			"byte3"
-			"short"
-			"int"
-			"long"
-			"float"
-			"float2"
-			"double"
-			"double3"
-			"bytearray"
-			"intarray"
-			"longarray"
-			"list"
-			"compound"
-		}
-	} else {
-		panic!();
-	}
-}
 
-#[test]
-fn tag_fromstr_test() {
-	let snbt = r#"
-	{
-		byte1 : 0b,
-		byte2 : -10b,
-		byte3 : 127b,
-		short : 69s,
-		int : 420,
-		long : 69420,
-		float : 3f,
-		float2 : 3.14f,
-		double : 4d,
-		double2 : 4.5d,
-		double3 : 5.1,
-		bytearray : [B; true, false, 5b],
-		intarray : [I; 3, 5, 1],
-		longarray : [L; 3l, 4l, 5l],
-		list : [4b, 3b, 2b],
-		compound : {
-			"test" : "The quick brown fox jumps over the lazy dog."
-		}
-	}
-	"#;
-	let tag: Tag = snbt.parse().expect("Failed to parse.");
-	println!("{tag}");
-}
-
-// TEMPORARY: DELETE ME!
-#[test]
-fn foo() {
-	test_parse(r#"
+	#[test]
+	fn parsetest() {
+		use super::*;
+		let snbt = r#"
 		{
 			byte1 : 0b,
 			byte2 : -10b,
@@ -598,24 +520,114 @@ fn foo() {
 			bytearray : [B; true, false, 5b],
 			intarray : [I; 3, 5, 1],
 			longarray : [L; 3l, 4l, 5l],
-			lists : [
-				[4b, 3b, 2b],
-				[1s, -2s, 5s],
-				[420, 69],
-				["Hello", 'world']
-			],
+			list : [4b, 3b, 2b],
 			compound : {
-				"test" : "The quick brown fox jumps over the lazy dog.",
-				nested : {
+				"test" : "The quick brown fox jumps over the lazy dog."
+			}
+		}
+		"#;
+		if let Ok(Tag::Compound(result)) = Tag::parse(snbt) {
+			macro_rules! check_keys {
+				($($key:literal)+) => {
+					$(
+						assert!(result.contains_key($key));
+					)+
+				};
+			}
+			check_keys!{
+				"byte1"
+				"byte2"
+				"byte3"
+				"short"
+				"int"
+				"long"
+				"float"
+				"float2"
+				"double"
+				"double3"
+				"bytearray"
+				"intarray"
+				"longarray"
+				"list"
+				"compound"
+			}
+		} else {
+			panic!();
+		}
+	}
+	
+	#[test]
+	fn tag_fromstr_test() {
+		use super::*;
+		let snbt = r#"
+		{
+			byte1 : 0b,
+			byte2 : -10b,
+			byte3 : 127b,
+			short : 69s,
+			int : 420,
+			long : 69420,
+			float : 3f,
+			float2 : 3.14f,
+			double : 4d,
+			double2 : 4.5d,
+			double3 : 5.1,
+			bytearray : [B; true, false, 5b],
+			intarray : [I; 3, 5, 1],
+			longarray : [L; 3l, 4l, 5l],
+			list : [4b, 3b, 2b],
+			compound : {
+				"test" : "The quick brown fox jumps over the lazy dog."
+			}
+		}
+		"#;
+		let tag: Tag = snbt.parse().expect("Failed to parse.");
+		println!("{tag}");
+	}
+	
+	// TEMPORARY: DELETE ME!
+	#[test]
+	fn foo() {
+		use super::*;
+		test_parse(r#"
+			{
+				byte1 : 0b,
+				byte2 : -10b,
+				byte3 : 127b,
+				short : 69s,
+				int : 420,
+				long : 69420,
+				float : 3f,
+				float2 : 3.14f,
+				double : 4d,
+				double2 : 4.5d,
+				double3 : 5.1,
+				bytearray : [B; true, false, 5b],
+				intarray : [I; 3, 5, 1],
+				longarray : [L; 3l, 4l, 5l],
+				lists : [
+					[4b, 3b, 2b],
+					[1s, -2s, 5s],
+					[420, 69],
+					["Hello", 'world']
+				],
+				compound : {
+					"test" : "The quick brown fox jumps over the lazy dog.",
 					nested : {
 						nested : {
 							nested : {
-								leaf : "This is a secret."
+								nested : {
+									leaf : "This is a secret."
+								}
 							}
 						}
 					}
 				}
 			}
-		}
-	"#);
+		"#);
+	}
+
 }
+
+
+
