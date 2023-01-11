@@ -75,7 +75,7 @@ pub enum TagID {
 #[derive(Clone, Debug)]
 #[repr(isize)]
 pub enum ListTag {
-	///Represents a ListTag without any elements.
+	/// Represents a ListTag without any elements. This would be represented as a List<Byte> with a size of 0.
 	Empty,
 	Byte(Vec<i8>) = 1,
 	Short(Vec<i16>) = 2,
