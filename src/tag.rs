@@ -227,7 +227,7 @@ impl TryFrom<u8> for TagID {
 
 /// This is where a majority of the generation for the code in this module happens.
 /// It utilizes the table in `\src\table.rs`.
-macro_rules! tag_data {
+macro_rules! tag_code {
 	($($id:literal $title:ident $type:path [$($impl:path)?])+) => {
 		$(
 			// NbtType implementations for all NBT representable types.
@@ -327,7 +327,7 @@ macro_rules! tag_data {
 	};
 }
 
-tag_info_table!(tag_data);
+tag_info_table!(tag_code);
 
 /// Represents a Named NBT Tag, often used as a Tag Root for an NBT file.
 /// This is also sometimes called a root tag.
