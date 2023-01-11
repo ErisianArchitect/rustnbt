@@ -77,7 +77,6 @@ pub enum SpaceCount {
 	/// Come on! 32? You do not need this many spaces! But fine.
 	/// Have it your way. Here are your 32 spaces!
 	ThirtyTwo = 32,
-	Custom(usize),
 }
 
 impl Default for SpaceCount {
@@ -96,7 +95,6 @@ impl From<SpaceCount> for usize {
 			SpaceCount::Eight => 8,
 			SpaceCount::Sixteen => 16,
 			SpaceCount::ThirtyTwo => 32,
-			SpaceCount::Custom(size) => size,
 		}
 	}
 }
@@ -106,6 +104,7 @@ pub enum Indent {
 	/// Only a single tab.
 	Tabs,
 	Spaces(SpaceCount),
+	Text(String),
 }
 
 impl Default for Indent {
@@ -122,6 +121,7 @@ impl Indent {
 		match self {
 			Indent::Tabs => 1,
 			Indent::Spaces(count) => *count as usize,
+			Indent::Text(text) => text.len(),
 		}
 	}
 
@@ -366,6 +366,7 @@ impl Display for Indent {
 		match self {
 			Indent::Tabs => write!(f, "\t"),
 			Indent::Spaces(spaces) => write!(f, "{spaces}"),
+			Indent::Text(text) => write!(f, "{text}"),
 		}
 	}
 }
