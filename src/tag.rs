@@ -10,6 +10,19 @@ use num_traits::ToPrimitive;
 use num_traits::Zero;
 use std::fmt::Display;
 
+/*
+Functions:
+	compound_has_tag
+*/
+
+pub fn compound_has_tag<S: AsRef<str>>(tag: &Tag, name: S) -> bool {
+	if let Tag::Compound(map) = tag {
+		map.contains_key(name.as_ref())
+	} else {
+		false
+	}
+}
+
 /// Marks that a type is directly represented as an NBT tag type.
 pub trait NbtType {
 	/// The Minecraft NBT type ID.
