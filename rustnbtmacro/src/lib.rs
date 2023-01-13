@@ -1,4 +1,10 @@
+/*
+The code in this library is heavily inspired (copied) from thiserror
+*/
+
 #![allow(unused)]
+
+// mod expand;
 
 extern crate proc_macro;
 use std::{ops::ControlFlow, collections::HashSet};
@@ -21,6 +27,7 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     parse_macro_input,
+	DeriveInput,
     Expr,
     Ident,
     Type,
@@ -53,6 +60,23 @@ struct TestStruct {
 	maybe: Option<String>,
 	test: (i32, i32, i32),
 }
+
+// #[proc_macro_derive(Nbt, attributes(
+// 	encoder,
+// 	decoder,
+// 	preprocess,
+// 	postprocess,
+// 	remainder,
+// 	default,
+// 	name,
+// ))]
+// pub fn derive_nbt(input: TokenStream) -> TokenStream {
+//     let input = parse_macro_input!(input as DeriveInput);
+//     expand::nbt_derive(&input)
+//         .unwrap_or_else(|err| err.to_compile_error())
+//         .into()
+// }
+
 
 #[cfg(test)]
 mod tests {
