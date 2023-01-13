@@ -5,6 +5,7 @@ pub(crate) mod table;
 pub mod tag;
 pub mod macros;
 pub mod snbt;
+pub mod tagtype;
 // format is incomplete, and I have no need to finish it, so it will remain incomplete until it is needed.
 // pub mod format;
 
