@@ -3,8 +3,262 @@ The format module is for formatting NBT Tags into SNBT, which is a modified
 version of JSON.
 "]
 
+use chumsky::primitive::todo;
+
+use crate::{tagtype::*, tag::ListTag, MapType};
 // TODO: This module is incomplete, so don't use it unless you wanna lose a finger.
-use std::fmt::{Write, Display, Debug, Pointer};
+use std::{fmt::{Write, Display, Debug, Pointer}};
+
+pub fn write_byte<W: Write>(writer: &mut W, value: Byte) -> std::fmt::Result {
+	write!(writer, "{value}B")
+}
+
+pub fn write_short<W: Write>(writer: &mut W, value: Short) -> std::fmt::Result {
+	write!(writer, "{value}S")
+}
+
+pub fn write_int<W: Write>(writer: &mut W, value: Int) -> std::fmt::Result {
+	write!(writer, "{value}")
+}
+
+pub fn write_long<W: Write>(writer: &mut W, value: Long) -> std::fmt::Result {
+	write!(writer, "{value}L")
+}
+
+pub fn write_float<W: Write>(writer: &mut W, value: Float) -> std::fmt::Result {
+	write!(writer, "{value}F")
+}
+
+pub fn write_double<W: Write>(writer: &mut W, value: Double) -> std::fmt::Result {
+	write!(writer, "{value}D")
+}
+
+macro_rules! array_writer {
+	([$prefix:ident;]: $writer:ident, $array:ident, $sameline:ident, $indentation:ident) => {
+		{
+			if $array.len() > 0 {
+				// If there is only one item, we will write it on the same line.
+				if $sameline || $array.len() == 1{
+					write!($writer, "[{}; ", stringify!($prefix))?;
+					write!($writer, "{}", $array[0])?;
+					// $(write!($writer, "{}", stringify!($suffix))?;)?
+					// write_byte(array[0], writer)?;
+					$array[1..].iter().try_for_each(|value| {
+						write!($writer, ", ")?;
+						write!($writer, "{}", *value)?;
+						// $(write!($writer, "{}", stringify!($suffix))?;)?
+						Ok(())
+					})?;
+					write!($writer, "]")?;
+				} else {
+					write!($writer, "[{};\n", stringify!($prefix))?;
+					let indent = $indentation.indent();
+					{
+						write!($writer, "{indent}")?;
+						write!($writer, "{}", $array[0])?;
+						// $(write!($writer, "{}", stringify!($suffix))?;)?
+						$array[1..].iter().try_for_each(|value| {
+							write!($writer, ",\n")?;
+							write!($writer, "{indent}")?;
+							write!($writer, "{}", *value)?;
+							// $(write!($writer, "{}", stringify!($suffix))?;)?
+							Ok(())
+						})?;
+						write!($writer, "\n{}]", $indentation)?;
+					}
+				}
+			} else {
+				write!($writer, "[{};]", stringify!($prefix))?;
+			}
+			Ok(())
+		}
+	};
+}
+
+pub fn write_bytearray<W: Write>(writer: &mut W, array: &[Byte], sameline: bool, indentation: Indentation) -> std::fmt::Result {
+	array_writer!([B;]: writer, array, sameline, indentation)
+}
+
+pub fn write_intarray<W: Write>(writer: &mut W, array: &[Int], sameline: bool, indentation: Indentation) -> std::fmt::Result {
+	array_writer!([I;]: writer, array, sameline, indentation)
+}
+
+pub fn write_longarray<W: Write>(writer: &mut W, array: &[Long], sameline: bool, indentation: Indentation) -> std::fmt::Result {
+	array_writer!([L;]: writer, array, sameline, indentation)
+}
+
+pub fn write_string<W: Write>(writer: &mut W, value: &str) -> std::fmt::Result {
+	write!(writer, "\"")?;
+	write_escaped_string(writer, value)?;
+	write!(writer, "\"")
+}
+
+pub fn write_list<W: Write>(writer: &mut W, value: &ListTag, sameline: bool, indentation: Indentation) -> std::fmt::Result {
+	macro_rules! write_func {
+		($writer:ident, $list:ident, $sameline:ident, $indentation: ident: $func:ident($($arg:expr),*)$([$ref:tt])?) => {
+			{
+				write!($writer, "[")?;
+				if !$sameline && $list.len() > 1 {
+					write!($writer, "\n")?;
+				}
+				let last_index = $list.len() - 1;
+				$list.iter().enumerate().try_for_each(|(index, value)| {
+					// write_byte($writer, *value)?;
+					if !$sameline && $list.len() >= 1 {
+						write!($writer, "{}", $indentation)?;
+					}
+					$func(writer, $($ref)?value, $($arg),*)?;
+					if index != last_index {
+						write!($writer, ",")?;
+						if $sameline {
+							write!($writer, " ")?;
+						}
+					}
+					if !$sameline && $list.len() > 1{
+						write!($writer, "\n")?;
+					}
+					Ok(())
+				})?;
+				write!($writer, "{}", $indentation.outdent())?;
+				write!($writer, "]")
+			}	
+		}
+	}
+	let indent = indentation.indent();
+	match value {
+		ListTag::Empty => write!(writer, "[]"),
+		ListTag::Byte(list) => write_func!(writer, list, sameline, indent: write_byte()[*]),
+		ListTag::Short(list) => write_func!(writer, list, sameline, indent: write_short()[*]),
+		ListTag::Int(list) => write_func!(writer, list, sameline, indent: write_int()[*]),
+		ListTag::Long(list) => write_func!(writer, list, sameline, indent: write_long()[*]),
+		ListTag::Float(list) => write_func!(writer, list, sameline, indent: write_float()[*]),
+		ListTag::Double(list) => write_func!(writer, list, sameline, indent: write_double()[*]),
+		ListTag::ByteArray(list) => write_func!(writer, list, sameline, indent: write_bytearray(sameline, indent)),
+		ListTag::String(list) => write_func!(writer, list, sameline, indent: write_string()),
+		ListTag::List(list) => write_func!(writer, list, sameline, indent: write_list(sameline, indent)),
+		ListTag::Compound(list) => write_func!(writer, list, sameline, indent: write_compound(sameline, indent)),
+		ListTag::IntArray(list) => write_func!(writer, list, sameline, indent: write_intarray(sameline, indent)),
+		ListTag::LongArray(list) => write_func!(writer, list, sameline, indent: write_longarray(sameline, indent)),
+	}
+}
+
+pub fn write_identifier<W: Write>(writer: &mut W, ident: &str) -> std::fmt::Result {
+	if is_identifier(ident) {
+		write!(writer, "{ident}")
+	} else {
+		write_string(writer, ident)
+	}
+}
+
+pub fn write_compound<W: Write>(writer: &mut W, value: &crate::Map, sameline: bool, indentation: Indentation) -> std::fmt::Result {
+	use crate::tag::*;
+	if value.is_empty() {
+		write!(writer, "{{}}")
+	} else {
+		write!(writer, "{{ ")?;
+		if !sameline {
+			write!(writer, "\n")?;
+		}
+		let last_index = value.len() - 1;
+		let indent = indentation.indent();
+		value.iter().enumerate().try_for_each(|(index, (key, tag))| {
+			write!(writer, "{}", indent)?;
+			write_identifier(writer, key)?;
+			write!(writer, " : ")?;
+			match tag {
+				Tag::Byte(value) => write_byte(writer, *value),
+				Tag::Short(value) => write_short(writer, *value),
+				Tag::Int(value) => write_int(writer, *value),
+				Tag::Long(value) => write_long(writer, *value),
+				Tag::Float(value) => write_float(writer, *value),
+				Tag::Double(value) => write_double(writer, *value),
+				Tag::ByteArray(array) => write_bytearray(writer, array, sameline, indent),
+				Tag::String(value) => write_string(writer, value),
+				Tag::List(value) => write_list(writer, value, sameline, indent),
+				Tag::Compound(value) => write_compound(writer, value, sameline, indent),
+				Tag::IntArray(array) => write_intarray(writer, array, sameline, indent),
+				Tag::LongArray(array) => write_longarray(writer, array, sameline, indent),
+			}?;
+			if index != last_index {
+				write!(writer, ",")?;
+				if sameline {
+					write!(writer, " ")?;
+				} else {
+					write!(writer, "\n")?;
+				}
+			}
+			Ok(())
+		})?;
+		if !sameline {
+			write!(writer, "\n{}", indentation)?;
+		}
+		if sameline {
+			write!(writer, " ")?;
+		}
+		write!(writer, "}}")
+	}
+}
+
+#[test]
+fn format_test() {
+	let mut file = std::fs::File::create("./ignore/test_output.txt").expect("Failed to open file.");
+	use crate::snbt;
+	use crate::tag::*;
+
+	let snbt = r#"
+	{
+		byte1 : 0b,
+		byte2 : -10b,
+		byte3 : 127b,
+		short : 69s,
+		int : 420,
+		long : 69420L,
+		float : 3f,
+		float2 : 3.14f,
+		double : 4d,
+		double2 : 4.5d,
+		double3 : 5.1,
+		bytearray : [B; true, false, 5b],
+		intarray : [I; 3, 5, 1],
+		longarray : [L; 3l, 4l, 5l],
+		lists : [
+			[4b, 3b, 2b],
+			[1s, -2s, 5s],
+			[420, 69],
+			["Hello", 'world']
+		],
+		compound : {
+			"test" : "The quick brown fox jumps over the lazy dog.",
+			nested : {
+				nested : {
+					nested : {
+						nested : {
+							leaf : "This is a secret."
+						}
+					}
+				}
+			}
+		}
+	}
+	"#;
+	if let Ok(Tag::Compound(compound)) = Tag::parse(snbt) {
+		let mut text = String::new();
+		write_compound(&mut text, &compound, false, Indentation::tabs());
+		use std::io::Write as WriteIO;
+		write!(file, "{}", text);
+	}
+}
+
+#[test]
+fn arrays_test() {
+	use super::*;
+	let array: Vec<Long> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+	let mut writer = String::new();
+	write_longarray(&mut writer, &array, false, Indentation::tabs());
+	let mut file = std::fs::File::create("./ignore/test_output.txt").expect("Failed");
+	use std::io::Write;
+	write!(file, "{}", &writer);
+}
 
 // use chumsky::chain::Chain;
 
@@ -35,7 +289,17 @@ fn write_indent<W: Write>(buffer: &mut W, indent: usize, indent_string: &str) {
 		});
 }
 
-fn escape_string<S: AsRef<str>, W: Write>(writer: &mut W, unescaped: S) -> std::fmt::Result {
+fn is_identifier(value: &str) -> bool {
+	value.chars().try_for_each(|c| {
+		if c.is_ascii_alphanumeric() || "+-_.".contains(c) {
+			Ok(())
+		} else {
+			Err(())
+		}
+	}).is_ok()
+}
+
+fn write_escaped_string<S: AsRef<str>, W: Write>(writer: &mut W, unescaped: S) -> std::fmt::Result {
 	// Macros make the whole world better!
 	macro_rules! match_char {
 		($buffer:expr, $input:expr; $($tok:tt => $escaped:expr),+) => {
@@ -66,7 +330,7 @@ fn escape_string<S: AsRef<str>, W: Write>(writer: &mut W, unescaped: S) -> std::
 
 /// Space count constrained to powers of two with an upper-bound of 32 and a lower bound of 1.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-#[repr(u8)]
+#[repr(usize)]
 pub enum SpaceCount {
 	One = 1,
 	Two = 2,
@@ -77,25 +341,27 @@ pub enum SpaceCount {
 	/// Come on! 32? You do not need this many spaces! But fine.
 	/// Have it your way. Here are your 32 spaces!
 	ThirtyTwo = 32,
+	Exact(usize) = 0,
 }
 
-impl Default for SpaceCount {
-	/// Returns [SpaceCount::Four].
-	fn default() -> Self {
-		Self::Four
-	}
-}
-
-impl From<SpaceCount> for usize {
-	fn from(count: SpaceCount) -> usize {
-		match count {
+impl SpaceCount {
+	pub fn len(&self) -> usize {
+		match self {
 			SpaceCount::One => 1,
 			SpaceCount::Two => 2,
 			SpaceCount::Four => 4,
 			SpaceCount::Eight => 8,
 			SpaceCount::Sixteen => 16,
 			SpaceCount::ThirtyTwo => 32,
+			SpaceCount::Exact(count) => *count,
 		}
+	}
+}
+
+impl Default for SpaceCount {
+	/// Returns [SpaceCount::Four].
+	fn default() -> Self {
+		Self::Four
 	}
 }
 
@@ -110,7 +376,7 @@ pub enum Indent {
 impl Default for Indent {
 	/// Returns [Indent::Spaces]\([SpaceCount::Four]\)
 	fn default() -> Self {
-		Self::four_spaces()
+		Self::Tabs
 	}
 }
 
@@ -120,9 +386,13 @@ impl Indent {
 	pub fn len(&self) -> usize {
 		match self {
 			Indent::Tabs => 1,
-			Indent::Spaces(count) => *count as usize,
+			Indent::Spaces(count) => count.len(),
 			Indent::Text(text) => text.len(),
 		}
+	}
+
+	pub fn indentation(self) -> Indentation {
+		Indentation::new(self)
 	}
 
 	pub const fn space() -> Self {
@@ -198,6 +468,17 @@ impl Indentation {
 			level: self.level + 1,
 		}
 	}
+
+	pub fn outdent(self) -> Self {
+		if self.level > 0 {
+			Self {
+				indent: self.indent,
+				level: self.level - 1,
+			}
+		} else {
+			self
+		}
+	}
 }
 
 impl Display for Indentation {
@@ -206,144 +487,6 @@ impl Display for Indentation {
 			.try_for_each(|_| {
 				write!(f, "{}", self.indent)
 			})
-	}
-}
-
-trait NbtDisplay {
-	const ARRAY_PREFIX: Option<char> = None;
-	fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
-	fn write_array_prefix(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		if let Some(prefix) = Self::ARRAY_PREFIX {
-			write!(f, "{};", prefix)
-		} else {
-			Ok(())
-		}
-	}
-	fn wrap(self) -> DisplayWrapper<Self> where Self : Sized {
-		DisplayWrapper(self)
-	}
-
-	fn wrap_borrow(&self) -> DisplayWrapper<&Self> {
-		DisplayWrapper(self)
-	}
-}
-
-/// Wraps a type that might implement [Display] allowing for fine tuning of displaying of the value.
-struct DisplayWrapper<T>(T) ;
-
-macro_rules! display_wrappers {
-	($($type:ty => $format:literal $(prefix = $prefix:literal)?;)+) => {
-		$(
-			impl NbtDisplay for $type {
-				$(
-					const ARRAY_PREFIX: Option<char> = Some($prefix);
-				)?
-				fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-					write!(f, $format, self)
-				}
-			}
-		)+
-	};
-}
-
-display_wrappers!{
-	i8 => "{}B" prefix = 'B';
-	i16 => "{}S";
-	i32 => "{}" prefix = 'I';
-	i64 => "{}L" prefix = 'L';
-	f32 => "{}F";
-	f64 => "{}D";
-}
-
-impl NbtDisplay for String {
-	fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "\"")?;
-		escape_string(f, self)?;
-		write!(f, "\"")
-	}
-}
-
-impl<T: NbtDisplay> NbtDisplay for IndentedValue<&Vec<T>> {
-    fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "[")?;
-		T::write_array_prefix(f)?;
-		if self.value.len() > 1 {
-			// No new line has been written, and this the first element should start on a new line.
-			writeln!(f)?;
-			// Write the inde
-			write!(f, "{}", self.indentation)?;
-			self.value[0].fmt_nbt(f)?;
-			self.value[1..].iter().try_for_each(|item| {
-				writeln!(f, ",")?;
-				write!(f, "{}", self.indentation)?;
-				item.fmt_nbt(f)
-			})?;
-			writeln!(f, "{}]", self.indentation);
-		} else {
-			self.value[0].fmt_nbt(f)?;
-			// There is only a single element, so there is no need to indent or write on a new line.
-			write!(f, "]")?;
-		}
-        Ok(())
-    }
-}
-
-impl NbtDisplay for IndentedValue<&crate::tag::ListTag> {
-    const ARRAY_PREFIX: Option<char> = None;
-
-    fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-}
-
-// fmt_nbt takes a reference to self, so if we have something like &&&&&&&T where T implements NbtDisplay
-// we can dereference to &T so that it's just NbtDisplay::fmt_display(&T)
-// That allows you to have a reference to a reference to a reference that implements NbtDisplay and you'll still be able to use it.
-impl<T: NbtDisplay> NbtDisplay for &T {
-	fn fmt_nbt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		T::fmt_nbt(self, f)
-	}
-}
-
-// Wrapper type for creating display functions for SNBT.
-struct IndentedValue<T> {
-	value: T,
-	indentation: Indentation,
-}
-
-impl<T> IndentedValue<T> {
-
-	pub fn new(value: T) -> Self {
-		Self::indented(value, Indentation::spaces(SpaceCount::Four))
-	}
-
-	pub fn indented(value: T, indentation: Indentation) -> Self {
-		Self {
-			value,
-			indentation,
-		}
-	}
-
-	pub fn indent<NT>(&self, value: NT) -> IndentedValue<NT> {
-		IndentedValue::indented(value, self.indentation.indent())
-	}
-
-	pub(crate) fn write_indent<W: std::fmt::Write>(&self, writer: &mut W) -> std::fmt::Result {
-		write!(writer, "{}", self.indentation)
-	}
-
-}
-
-impl<T: Display> Display for IndentedValue<T> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{}{}", self.indentation, self.value)
-	}
-}
-
-impl<T: Display> IndentedValue<T> {
-	pub fn write_indented_value<W: std::fmt::Write>(&self, writer: &mut W) {
-		self.write_indent(writer);
-		write!(writer, "{}{}", self.indentation, self.value);
 	}
 }
 
@@ -357,6 +500,14 @@ impl Display for SpaceCount {
 			Eight => write!(f, "        "),
 			Sixteen => write!(f, "                "),
 			ThirtyTwo => write!(f, "                                "),
+			&Exact(mut count) => {
+				let spaces32 = "                                ";
+				while count >= 32 {
+					write!(f, "{}", spaces32)?;
+					count -= 32;
+				}
+				write!(f, "{}", &spaces32[0..count])
+			},
 		}
 	}
 }
@@ -368,12 +519,6 @@ impl Display for Indent {
 			Indent::Spaces(spaces) => write!(f, "{spaces}"),
 			Indent::Text(text) => write!(f, "{text}"),
 		}
-	}
-}
-
-impl<T: NbtDisplay> Display for DisplayWrapper<T> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		self.0.fmt_nbt(f)
 	}
 }
 

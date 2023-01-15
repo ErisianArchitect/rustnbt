@@ -385,9 +385,21 @@ impl Tag {
 	///     double : 4d,
 	///     double2 : 4.5d,
 	///     double3 : 5.1,
-	///     bytearray : [B; true, false, 5b],
-	///     intarray : [I; 3, 5, 1],
-	///     longarray : [L; 3l, 4l, 5l],
+	///     "bytearray" : [B;
+	/// 		true,
+	/// 		false,
+	/// 		5b
+	/// 	],
+	///     intarray : [I;
+	/// 		3,
+	/// 		5,
+	/// 		1
+	/// 	],
+	///     longarray : [L;
+	/// 		3l,
+	/// 		4l,
+	/// 		5l
+	/// 	],
 	///     lists : [
 	///         ["one", "two", 'three', 'four\\nnewline']
 	///     ],
@@ -397,7 +409,7 @@ impl Tag {
 	/// }
 	/// "#;
 	/// if let Ok(Tag::Compound(result)) = Tag::parse(snbt) {
-	///     assert!(result.contains_key(&"double".to_string()));
+	///     assert!(result.contains_key(&"bytearray".to_string()));
 	/// } else {
 	///     panic!();
 	/// }

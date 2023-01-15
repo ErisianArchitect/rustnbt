@@ -89,7 +89,7 @@ pub enum TagID {
 #[repr(isize)]
 pub enum ListTag {
 	/// Represents a ListTag without any elements. This would be represented as a List<Byte> with a size of 0.
-	Empty,
+	Empty = 0,
 	Byte(Vec<i8>) = 1,
 	Short(Vec<i16>) = 2,
 	Int(Vec<i32>) = 3,
@@ -602,13 +602,28 @@ impl Display for Tag {
 		//       But I would like to be able to pretty-print SNBT as well.
 		//       So the solution I would like to go with is to create a formatter
 		//       that is configurable.
-		f.write_fmt(format_args!("{:#?}", self))
+		use crate::format::*;
+		match self {
+			Tag::Byte(value) => write_byte(f, *value),
+			Tag::Short(value) => write_short(f, *value),
+			Tag::Int(value) => write_int(f, *value),
+			Tag::Long(value) => write_long(f, *value),
+			Tag::Float(value) => write_float(f, *value),
+			Tag::Double(value) => write_double(f, *value),
+			Tag::ByteArray(array) => write_bytearray(f, array, false, Indentation::tabs()),
+			Tag::String(value) => write_string(f, value),
+			Tag::List(list) => write_list(f, list, false, Indentation::tabs()),
+			Tag::Compound(compound) => write_compound(f, compound, false, Indentation::tabs()),
+			Tag::IntArray(array) => write_intarray(f, array, false, Indentation::tabs()),
+			Tag::LongArray(array) => write_longarray(f, array, false, Indentation::tabs()),
+		}
 	}
 }
 
 impl Display for ListTag {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("{:#?}", self))
+		use crate::format::*;
+		write_list(f, self, false, Indentation::tabs())
 	}
 }
 

@@ -7,7 +7,7 @@ pub mod macros;
 pub mod snbt;
 pub mod tagtype;
 // format is incomplete, and I have no need to finish it, so it will remain incomplete until it is needed.
-// pub mod format;
+pub mod format;
 
 /// This is the Error type returned from NbtRead and NbtWrite operations that fail.
 #[derive(thiserror::Error, Debug)]
@@ -26,6 +26,8 @@ pub enum NbtError {
 	End,
 }
 
+
+
 // indexmap preserves the insertion order of elements.
 // Minecraft does not care what order elements are in, one thing to note
 // is that without having insertion order preserved, the order of elements
@@ -34,9 +36,8 @@ pub enum NbtError {
 #[cfg(feature = "preserve_order")]
 use indexmap::IndexMap;
 #[cfg(feature = "preserve_order")]
-/// The mapping type used for Tag::Compound.
-pub type Map = IndexMap<String, tag::Tag>;
-// Fallback to HashMap.
+pub type MapType<K, V> = IndexMap<K, V>;
 #[cfg(not(feature = "preserve_order"))]
-/// The mapping type used for Tag::Compound.
-pub type Map = std::collections::HashMap<String, tag::Tag>;
+pub type MapType<K, V> = std::collections::HashMap<K, V>;
+
+pub type Map = MapType<String, tag::Tag>;
