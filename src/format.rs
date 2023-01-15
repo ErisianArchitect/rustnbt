@@ -199,6 +199,24 @@ pub fn write_compound<W: Write>(writer: &mut W, value: &crate::Map, sameline: bo
 	}
 }
 
+pub fn write_tag<W: Write>(writer: &mut W, tag: &crate::tag::Tag, sameline: bool, indentation: Indentation) -> std::fmt::Result {
+	use crate::tag::Tag;
+	match tag {
+		Tag::Byte(value) => write_byte(writer, *value),
+		Tag::Short(value) => write_short(writer, *value),
+		Tag::Int(value) => write_int(writer, *value),
+		Tag::Long(value) => write_long(writer, *value),
+		Tag::Float(value) => write_float(writer, *value),
+		Tag::Double(value) => write_double(writer, *value),
+		Tag::ByteArray(array) => write_bytearray(writer, array, sameline, indentation),
+		Tag::String(value) => write_string(writer, value),
+		Tag::List(list) => write_list(writer, list, sameline, indentation),
+		Tag::Compound(compound) => write_compound(writer, compound, sameline, indentation),
+		Tag::IntArray(array) => write_intarray(writer, array, sameline, indentation),
+		Tag::LongArray(array) => write_longarray(writer, array, sameline, indentation),
+	}
+}
+
 #[test]
 fn format_test() {
 	let mut file = std::fs::File::create("./ignore/test_output.txt").expect("Failed to open file.");

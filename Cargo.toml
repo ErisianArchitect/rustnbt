@@ -25,4 +25,8 @@ bytemuck = "1.12.1"
 chumsky = "0.8.0"
 rustnbtmacro = { path = "rustnbtmacro" }
 
+[[bin]]
+name = "formatnbt"
+required-features = ["preserve_order"]
+
 [workspace]
